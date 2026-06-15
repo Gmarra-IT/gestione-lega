@@ -9,6 +9,11 @@
 .chart-wrap {
   position: relative;
   height: 320px;
+  overflow: hidden;
+}
+
+.chart-wrap canvas {
+  max-width: 100% !important;
 }
 
 .matrix-card {

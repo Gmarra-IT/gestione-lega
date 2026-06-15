@@ -4,9 +4,13 @@
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(320px, 420px) 1fr;
+  grid-template-columns: minmax(0, 420px) 1fr;
   gap: 1.25rem;
   align-items: start;
+}
+
+.layout > .card {
+  min-width: 0;
 }
 
 @media (max-width: 760px) {
@@ -78,4 +82,8 @@
 .del:hover {
   background: var(--danger-soft);
   color: var(--danger);
+}
+
+.scroll {
+  overflow-x: auto;
 }
