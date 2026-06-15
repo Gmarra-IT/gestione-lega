@@ -17,6 +17,7 @@ builder.Services.Configure<AdminOptions>(builder.Configuration.GetSection("Admin
 
 builder.Services.AddScoped<LeagueReadService>();
 builder.Services.AddScoped<LeagueWriteService>();
+builder.Services.AddScoped<LeagueImportService>();
 builder.Services.AddScoped<AuthService>();
 
 var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
@@ -120,6 +121,15 @@ admin.MapDelete("/results/{id:int}", async (int id, LeagueWriteService svc) =>
     await svc.DeleteResultAsync(id);
     return Results.NoContent();
 });
+
+admin.MapPost("/import/pdf", async (IFormFile file, LeagueImportService svc) =>
+{
+    await using var stream = file.OpenReadStream();
+    return Results.Ok(await svc.PreviewAsync(stream));
+}).DisableAntiforgery();
+
+admin.MapPost("/import/commit", async (ImportCommitRequest req, LeagueImportService svc) =>
+    Results.Ok(await svc.CommitAsync(req)));
 
 app.Run();
 

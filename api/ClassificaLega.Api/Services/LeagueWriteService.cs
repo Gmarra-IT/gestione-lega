@@ -171,7 +171,7 @@ public class LeagueWriteService(AppDbContext db)
 
     /// <summary>Recompute bonus risultato/partecipazione and total for every result of a player,
     /// since participation bonus depends on the player's ordered stage history.</summary>
-    private async Task RecomputePlayerAsync(int playerId)
+    public async Task RecomputePlayerAsync(int playerId)
     {
         var results = await db.Results
             .Where(r => r.PlayerId == playerId)

@@ -1,0 +1,96 @@
+<h1>Import PDF EventLink</h1>
+
+<div class="card upload">
+  <label for="pdf">File PDF "Classifica per posizione"</label>
+  <input id="pdf" type="file" accept="application/pdf" (change)="onFile($event)" [disabled]="busy()" />
+  @if (fileName()) { <p class="hint">File: {{ fileName() }}</p> }
+</div>
+
+@if (error()) { <div class="msg error">{{ error() }}</div> }
+
+@if (done(); as d) {
+  <div class="msg ok">
+    Import completato sulla tappa {{ d.stageNumber }}:
+    {{ d.imported }} risultati,
+    {{ d.replaced }} sovrascritti,
+    {{ d.playersCreated }} nuovi giocatori creati.
+  </div>
+}
+
+@if (preview(); as p) {
+  <div class="card meta">
+    <div class="grid">
+      <div>
+        <label for="stageN">Tappa</label>
+        <input id="stageN" type="number" min="1"
+               [ngModel]="stageNumber()" (ngModelChange)="stageNumber.set($event === null ? null : +$event)" />
+      </div>
+      <div>
+        <label for="stageName">Nome tappa</label>
+        <input id="stageName" [ngModel]="stageName()" (ngModelChange)="stageName.set($event)" />
+      </div>
+      <div>
+        <label for="date">Data</label>
+        <input id="date" type="date" [ngModel]="eventDate()" (ngModelChange)="eventDate.set($event)" />
+      </div>
+      <div>
+        <label for="elid">EventLink ID</label>
+        <input id="elid" [ngModel]="eventLinkId()" (ngModelChange)="eventLinkId.set($event)" />
+      </div>
+    </div>
+
+    @if (stageHasResults()) {
+      <div class="warn">
+        <label class="check">
+          <input type="checkbox" [ngModel]="overwrite()" (ngModelChange)="overwrite.set($event)" />
+          La tappa {{ stageNumber() }} ha già {{ existingResultCount() }} risultati — sovrascrivi
+        </label>
+      </div>
+    }
+  </div>
+
+  <div class="card">
+    <h2>Righe ({{ rows().length }}) · {{ matchedCount() }} abbinate · {{ newCount() }} nuove</h2>
+    <p class="hint">Per ogni riga: abbina a un giocatore esistente o crea un nuovo giocatore col nome del PDF.</p>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th class="num">Pos</th>
+            <th>Nome (PDF)</th>
+            <th class="num">Punti</th>
+            <th>Giocatore</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of rows(); track $index) {
+            <tr [class.is-new]="r.playerId === null">
+              <td class="num muted">{{ r.name === '' ? '' : $index + 1 }}</td>
+              <td>{{ r.name }}</td>
+              <td class="num">
+                <input class="mp" type="number" min="0" max="12"
+                       [ngModel]="r.matchPoints" (ngModelChange)="setRowPoints($index, +$event)" />
+              </td>
+              <td>
+                <select [ngModel]="r.playerId === null ? 'new' : r.playerId"
+                        (ngModelChange)="setRowPlayer($index, $event)">
+                  <option [ngValue]="'new'">➕ Crea «{{ r.name }}»</option>
+                  @for (pl of players(); track pl.playerId) {
+                    <option [ngValue]="pl.playerId">{{ pl.displayName }}</option>
+                  }
+                </select>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="actions">
+      <button class="btn" type="button" (click)="commit()"
+              [disabled]="busy() || stageNumber() === null || (stageHasResults() && !overwrite())">
+        {{ busy() ? 'Import…' : 'Conferma import' }}
+      </button>
+    </div>
+  </div>
+}

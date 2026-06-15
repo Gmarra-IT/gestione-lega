@@ -20,6 +20,12 @@ export const routes: Routes = [
     loadComponent: () => import('./features/inserimento/inserimento.component').then(m => m.InserimentoComponent),
   },
   {
+    path: 'importazione',
+    title: 'Import PDF',
+    canActivate: [adminGuard],
+    loadComponent: () => import('./features/importazione/importazione.component').then(m => m.ImportazioneComponent),
+  },
+  {
     path: 'impostazioni',
     title: 'Impostazioni',
     canActivate: [adminGuard],

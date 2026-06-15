@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
+  ImportCommitRequest, ImportCommitResponse, ImportPreviewResponse,
   LoginRequest, LoginResponse, Matrix, Progression, Season, Stage, StageResult,
   StandingRow, UpdateSeasonRequest, UpsertResultRequest, UpsertStageRequest,
 } from './models';
@@ -51,5 +52,15 @@ export class ApiService {
   }
   deleteResult(id: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/results/${id}`);
+  }
+
+  // --- import PDF (admin) ---
+  importPdfPreview(file: File): Observable<ImportPreviewResponse> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<ImportPreviewResponse>(`${this.base}/import/pdf`, form);
+  }
+  importCommit(req: ImportCommitRequest): Observable<ImportCommitResponse> {
+    return this.http.post<ImportCommitResponse>(`${this.base}/import/commit`, req);
   }
 }

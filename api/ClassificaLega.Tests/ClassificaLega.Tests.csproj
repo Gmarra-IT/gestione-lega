@@ -20,6 +20,14 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ClassificaLega.Domain\ClassificaLega.Domain.csproj" />
+    <ProjectReference Include="..\ClassificaLega.Infrastructure\ClassificaLega.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\docs\Turno 4 Classifica per posizione.pdf">
+      <Link>TestData\turno1.pdf</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
