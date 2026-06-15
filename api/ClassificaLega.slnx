@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="ClassificaLega.Api/ClassificaLega.Api.csproj" />
+  <Project Path="ClassificaLega.Domain/ClassificaLega.Domain.csproj" />
+  <Project Path="ClassificaLega.Infrastructure/ClassificaLega.Infrastructure.csproj" />
+  <Project Path="ClassificaLega.Tests/ClassificaLega.Tests.csproj" />
+</Solution>

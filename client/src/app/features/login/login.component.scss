@@ -1,0 +1,10 @@
+:host {
+  display: block;
+}
+
+.login {
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}

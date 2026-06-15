@@ -1,0 +1,16 @@
+:host {
+  display: block;
+}
+
+.settings {
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}

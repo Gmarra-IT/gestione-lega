@@ -1,0 +1,6 @@
+@ClassificaLega.Api_HostAddress = http://localhost:5188
+
+GET {{ClassificaLega.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

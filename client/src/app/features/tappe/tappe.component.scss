@@ -1,0 +1,55 @@
+:host {
+  display: block;
+}
+
+.chart-card {
+  margin-bottom: 1.25rem;
+}
+
+.chart-wrap {
+  position: relative;
+  height: 320px;
+}
+
+.matrix-card {
+  padding: 0;
+}
+
+.scroll {
+  overflow-x: auto;
+}
+
+.scroll table {
+  min-width: 600px;
+}
+
+th,
+td {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+tr.sel {
+  background: var(--accent-soft);
+}
+
+tr.sel:hover {
+  background: var(--accent-soft);
+}
+
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 0.4rem;
+  vertical-align: middle;
+}
+
+td.empty {
+  color: var(--text-muted);
+}

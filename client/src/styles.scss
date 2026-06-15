@@ -1,0 +1,155 @@
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #eef0f4;
+  --border: #e2e5ea;
+  --text: #1b1f24;
+  --text-muted: #5b6470;
+  --accent: #2563eb;
+  --accent-soft: #e6efff;
+  --accent-hover: #1d4ed8;
+  --danger: #dc2626;
+  --danger-soft: #fde8e8;
+  --ok: #16a34a;
+  --new: #b45309;
+  --new-soft: #fef3c7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-size: 15px;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin: 0 0 1rem;
+}
+
+h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.75rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+th {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+tbody tr:hover {
+  background: var(--surface-2);
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem;
+  font-weight: 500;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  background: var(--surface);
+  color: var(--text);
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+button.btn {
+  padding: 0.55rem 1rem;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.btn:hover {
+  background: var(--accent-hover);
+}
+
+button.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.btn.ghost {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+button.btn.danger {
+  background: var(--danger);
+}
+
+.msg {
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  margin: 0.75rem 0;
+}
+
+.msg.error {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.msg.ok {
+  background: #dcfce7;
+  color: var(--ok);
+}
+
+.muted {
+  color: var(--text-muted);
+}

@@ -1,0 +1,34 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build-api",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/api/ClassificaLega.Api/ClassificaLega.Api.csproj",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "start-client",
+            "type": "shell",
+            "command": "npm start",
+            "options": {
+                "cwd": "${workspaceFolder}/client"
+            },
+            "isBackground": true,
+            "problemMatcher": {
+                "owner": "typescript",
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "Building...|Generating browser application bundles",
+                    "endsPattern": "Application bundle generation complete|Compiled successfully|Angular Live Development Server is listening|Local:\\s+http://localhost:4200"
+                }
+            }
+        }
+    ]
+}

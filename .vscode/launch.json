@@ -1,0 +1,51 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "API (Avvia)",
+            "type": "coreclr",
+            "request": "launch",
+            "program": "${workspaceFolder}/api/ClassificaLega.Api/bin/Debug/net10.0/ClassificaLega.Api.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/api/ClassificaLega.Api",
+            "stopAtEntry": false,
+            "preLaunchTask": "build-api",
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            }
+        },
+        {
+            "name": "Client (Chrome)",
+            "type": "chrome",
+            "request": "launch",
+            "url": "http://localhost:4200",
+            "webRoot": "${workspaceFolder}/client",
+            "preLaunchTask": "start-client"
+        },
+        {
+            "name": ".NET Core Debugger (launch)",
+            "type": "coreclr",
+            "request": "launch",
+            "program": "${command:dotrush.activeTargetPath}",
+            "preLaunchTask": "dotrush: Build"
+        },
+        {
+            "name": ".NET Core Debugger (attach)",
+            "type": "coreclr",
+            "request": "attach",
+            "processId": "${command:dotrush.pickProcess}"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "API + Client",
+            "configurations": [
+                "API (Avvia)",
+                "Client (Chrome)"
+            ]
+        }
+    ]
+}

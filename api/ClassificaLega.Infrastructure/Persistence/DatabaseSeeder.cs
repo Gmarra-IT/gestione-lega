@@ -1,0 +1,117 @@
+using ClassificaLega.Domain.Entities;
+using ClassificaLega.Domain.Services;
+using Microsoft.EntityFrameworkCore;
+
+namespace ClassificaLega.Infrastructure.Persistence;
+
+public static class DatabaseSeeder
+{
+    // Match points per player per stage (stageIndex 0..6 = tappe 1..7).
+    // Source: workbook "Lega pauper - Gestione classifica.xlsm", foglio Tappe (reverse-engineered
+    // dai totali-tappa: total = matchPoints + BonusRisultato + BonusPartecipazione).
+    // null = giocatore assente a quella tappa.
+    private static readonly (string DisplayName, int?[] MatchPoints)[] PlayerData =
+    [
+        ("Bruno Barbieri",          [null,  9,  6,  9,  6, null, null]),
+        ("Daniel Gemignani",        [null, null,  3, null, null,  6,  3]),
+        ("Daniele Gambini",         [null,  9, null, null, null, null, null]),
+        ("Dario Tommasi",           [null,  6,  9,  6, null, null,  6]),
+        ("Gabriele Marraccini",     [ 9,  3,  7, 10,  9,  9,  9]),
+        ("Gianmarco Bina",          [null,  4, null, null, null, null, null]),
+        ("Gianmarco Del Bucchia",   [ 7,  0, 12,  6,  6,  9,  4]),
+        ("Gianmarco Venturini",     [null, null,  3, null, null, null, null]),
+        ("Gianmarco Volpe",         [null, null,  6,  6,  3,  4, null]),
+        ("Gioca Turo",              [null, 12, null, null, null, null, null]),
+        ("Giulio Bertozzi",         [ 0, null,  0, null, null, null, null]),
+        ("Igor Fustini",            [ 9,  4,  6,  9,  6,  3, null]),
+        ("Jhonathan Lipparelli",    [ 4,  6, null, null, null, null, null]),
+        ("Leonardo Guerra Silicani",[null,  9, null, null, null, null, null]),
+        ("Massimiliano Lombardi",   [null, null, null, null, null,  1, null]),
+        ("Michele Pardini",         [null, null,  6,  6,  6, null, null]),
+        ("Nicola Dalle Mura",       [null,  6,  9,  3, 12,  6,  9]),
+        ("Nicola Pardini",          [null,  3,  3,  9, null,  9,  6]),
+        ("Paolo Baroni",            [ 6,  6,  7,  4,  6,  9,  6]),
+        ("Roberto Randazzo",        [null,  6,  6,  3,  3, null,  0]),
+        ("Stefano Ghiara",          [null, null, null, null, null, null,  7]),
+        ("Tommaso Duccini",         [null, null, null, null, null,  6,  9]),
+    ];
+
+    public static async Task SeedAsync(AppDbContext db)
+    {
+        if (await db.Seasons.AnyAsync()) return;
+
+        var season = new Season
+        {
+            Name = "Lega Pauper Massarosa 2026",
+            TotalStages = 12,
+            CountingStages = 8,
+            IsActive = true,
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        db.Seasons.Add(season);
+        await db.SaveChangesAsync();
+
+        var stages = Enumerable.Range(1, 7).Select(n => new Stage
+        {
+            SeasonId = season.Id,
+            Number = n,
+            Name = $"Tappa {n}",
+            CreatedAt = DateTimeOffset.UtcNow,
+        }).ToList();
+        db.Stages.AddRange(stages);
+        await db.SaveChangesAsync();
+
+        var players = PlayerData.Select(p => new Player
+        {
+            SeasonId = season.Id,
+            DisplayName = p.DisplayName,
+            NormalizedKey = Normalize(p.DisplayName),
+            CreatedAt = DateTimeOffset.UtcNow,
+        }).ToList();
+        db.Players.AddRange(players);
+        await db.SaveChangesAsync();
+
+        var results = new List<Result>();
+        for (int pi = 0; pi < PlayerData.Length; pi++)
+        {
+            var (_, matchPointsPerStage) = PlayerData[pi];
+            var player = players[pi];
+
+            // stages where this player participated
+            var participatedStages = matchPointsPerStage
+                .Select((mp, idx) => (mp, stageId: stages[idx].Id, stageNumber: idx + 1))
+                .Where(x => x.mp.HasValue)
+                .ToList();
+
+            var bonusPartecipazioneMap = ScoringService.RecomputePartecipazione(
+                participatedStages.Select(x => (x.stageId, x.stageNumber)));
+
+            foreach (var (mp, stageId, _) in participatedStages)
+            {
+                var br = ScoringService.BonusRisultato(mp!.Value);
+                var bp = bonusPartecipazioneMap[stageId];
+                results.Add(new Result
+                {
+                    StageId = stageId,
+                    PlayerId = player.Id,
+                    MatchPoints = mp.Value,
+                    BonusRisultato = br,
+                    BonusPartecipazione = bp,
+                    TotalPoints = ScoringService.ComputeTotalPoints(mp.Value, br, bp),
+                    CreatedAt = DateTimeOffset.UtcNow,
+                    UpdatedAt = DateTimeOffset.UtcNow,
+                });
+            }
+        }
+
+        db.Results.AddRange(results);
+        await db.SaveChangesAsync();
+    }
+
+    public static string Normalize(string name) =>
+        System.Text.RegularExpressions.Regex.Replace(
+            name.Normalize(System.Text.NormalizationForm.FormD)
+                .ToLowerInvariant(),
+            @"[\p{M}\s]+", m => m.Value == " " || m.Value.All(char.IsWhiteSpace) ? " " : "")
+        .Trim();
+}

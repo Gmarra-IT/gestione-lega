@@ -1,0 +1,22 @@
+<h1>Login admin</h1>
+
+<form class="card login" (ngSubmit)="submit()">
+  <div>
+    <label for="u">Username</label>
+    <input id="u" name="username" autocomplete="username"
+           [ngModel]="username()" (ngModelChange)="username.set($event)" />
+  </div>
+  <div>
+    <label for="p">Password</label>
+    <input id="p" name="password" type="password" autocomplete="current-password"
+           [ngModel]="password()" (ngModelChange)="password.set($event)" />
+  </div>
+
+  @if (error()) {
+    <div class="msg error">{{ error() }}</div>
+  }
+
+  <button class="btn" type="submit" [disabled]="busy() || !username() || !password()">
+    {{ busy() ? 'Accesso…' : 'Accedi' }}
+  </button>
+</form>

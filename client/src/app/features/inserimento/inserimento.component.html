@@ -1,0 +1,97 @@
+<h1>Inserimento risultato</h1>
+
+<div class="layout">
+  <form class="card form" (ngSubmit)="submit()">
+    <div>
+      <label for="stage">Tappa</label>
+      <select id="stage" name="stage"
+              [ngModel]="stageNumber()" (ngModelChange)="stageNumber.set(+$event)">
+        @for (s of stages(); track s.id) {
+          <option [value]="s.number">Tappa {{ s.number }} — {{ s.name }} ({{ s.resultCount }})</option>
+        }
+      </select>
+    </div>
+
+    <div>
+      <label>Giocatore</label>
+      <div class="toggle">
+        <button type="button" [class.active]="mode() === 'existing'" (click)="mode.set('existing')">Esistente</button>
+        <button type="button" [class.active]="mode() === 'new'" (click)="mode.set('new')">Nuovo</button>
+      </div>
+    </div>
+
+    @if (mode() === 'existing') {
+      <div>
+        <label for="player">Seleziona giocatore</label>
+        <select id="player" name="player"
+                [ngModel]="playerId()" (ngModelChange)="playerId.set($event === null ? null : +$event)">
+          <option [ngValue]="null" disabled>— scegli —</option>
+          @for (p of players(); track p.playerId) {
+            <option [ngValue]="p.playerId">{{ p.displayName }}</option>
+          }
+        </select>
+      </div>
+    } @else {
+      <div>
+        <label for="newName">Nome nuovo giocatore</label>
+        <input id="newName" name="newName"
+               [ngModel]="newPlayerName()" (ngModelChange)="newPlayerName.set($event)" />
+      </div>
+    }
+
+    <div>
+      <label for="mp">Punti effettivi (0–12)</label>
+      <input id="mp" name="mp" type="number" min="0" max="12"
+             [ngModel]="matchPoints()" (ngModelChange)="matchPoints.set(+$event)" />
+    </div>
+
+    <div class="preview">
+      <span>Punti <strong>{{ matchPoints() }}</strong></span>
+      <span>+ Bonus risultato <strong>{{ previewBonusRisultato() }}</strong></span>
+      <span>+ Bonus partecipazione <strong>{{ previewBonusPartecipazione() }}</strong></span>
+      <span class="total">= <strong>{{ previewTotal() }}</strong></span>
+    </div>
+    <p class="hint">Partecipazioni precedenti: {{ priorParticipations() }} → bonus {{ previewBonusPartecipazione() }} (soglia 5).</p>
+
+    @if (error()) { <div class="msg error">{{ error() }}</div> }
+    @if (ok()) { <div class="msg ok">{{ ok() }}</div> }
+
+    <button class="btn" type="submit"
+            [disabled]="busy() || (mode() === 'existing' && playerId() === null) || (mode() === 'new' && !newPlayerName().trim())">
+      {{ busy() ? 'Salvataggio…' : 'Salva risultato' }}
+    </button>
+  </form>
+
+  <div class="card results">
+    <h2>Risultati tappa {{ stageNumber() }}</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Giocatore</th>
+          <th class="num">Punti</th>
+          <th class="num">BR</th>
+          <th class="num">BP</th>
+          <th class="num">Tot</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (r of stageResults(); track r.id) {
+          <tr>
+            <td>{{ r.displayName }}</td>
+            <td class="num">{{ r.matchPoints }}</td>
+            <td class="num muted">{{ r.bonusRisultato }}</td>
+            <td class="num muted">{{ r.bonusPartecipazione }}</td>
+            <td class="num"><strong>{{ r.totalPoints }}</strong></td>
+            <td class="num">
+              <button type="button" class="del" title="Elimina" (click)="deleteResult(r)">✕</button>
+            </td>
+          </tr>
+        } @empty {
+          <tr><td colspan="6" class="muted">Nessun risultato per questa tappa.</td></tr>
+        }
+      </tbody>
+    </table>
+    <p class="hint">Reinserire lo stesso giocatore sovrascrive il suo punteggio.</p>
+  </div>
+</div>

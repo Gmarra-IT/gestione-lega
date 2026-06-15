@@ -1,0 +1,52 @@
+<h1>Tappe</h1>
+
+@if (matrix(); as m) {
+  <p class="muted">{{ m.totalStages }} tappe · Best {{ m.countingStages }} · clicca un giocatore per il grafico</p>
+
+  <div class="card chart-card">
+    <div class="chart-wrap">
+      <canvas #chart></canvas>
+    </div>
+  </div>
+
+  <div class="card matrix-card">
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Giocatore</th>
+            @for (n of m.stageNumbers; track n) {
+              <th class="num">T{{ n }}</th>
+            }
+            <th class="num">Best N</th>
+            <th class="num">Tot</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of m.rows; track row.playerId) {
+            <tr class="clickable" [class.sel]="isSelected(row.playerId)" (click)="toggle(row.playerId)">
+              <td>{{ row.position }}</td>
+              <td>
+                <span class="swatch" [style.background]="colorFor(row)"
+                      [style.opacity]="isSelected(row.playerId) ? 1 : 0.25"></span>
+                {{ row.displayName }}
+              </td>
+              @for (c of row.cells; track c.stageNumber) {
+                <td class="num" [class.empty]="c.totalPoints === null">
+                  {{ c.totalPoints === null ? '·' : c.totalPoints }}
+                </td>
+              }
+              <td class="num"><strong>{{ row.bestN }}</strong></td>
+              <td class="num muted">{{ row.totalPoints }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+} @else if (error()) {
+  <div class="msg error">{{ error() }}</div>
+} @else {
+  <p class="muted">Caricamento…</p>
+}

@@ -1,0 +1,29 @@
+<h1>Impostazioni stagione</h1>
+
+@if (season(); as s) {
+  <p class="muted">{{ s.name }}</p>
+
+  <form class="card settings" (ngSubmit)="save()">
+    <div>
+      <label for="total">Numero tappe totali</label>
+      <input id="total" type="number" min="1" name="total"
+             [ngModel]="totalStages()" (ngModelChange)="totalStages.set(+$event)" />
+      <p class="hint">Colonne nella matrice tappe.</p>
+    </div>
+    <div>
+      <label for="counting">Tappe valide al conteggio (Best N)</label>
+      <input id="counting" type="number" min="1" [max]="totalStages()" name="counting"
+             [ngModel]="countingStages()" (ngModelChange)="countingStages.set(+$event)" />
+      <p class="hint">Quante tappe migliori sommare per la classifica.</p>
+    </div>
+
+    @if (error()) { <div class="msg error">{{ error() }}</div> }
+    @if (ok()) { <div class="msg ok">{{ ok() }}</div> }
+
+    <button class="btn" type="submit" [disabled]="busy()">
+      {{ busy() ? 'Salvataggio…' : 'Salva' }}
+    </button>
+  </form>
+} @else {
+  <p class="muted">Caricamento…</p>
+}
