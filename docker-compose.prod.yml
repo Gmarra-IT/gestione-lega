@@ -1,0 +1,43 @@
+# Deploy VM — /opt/gestione-lega/docker-compose.yml
+# Immagini buildate da GitHub Actions (ARM64) e pushate su GHCR.
+# Le variabili sensibili stanno nel file .env accanto a questo compose (non versionato).
+services:
+  api:
+    image: ghcr.io/gmarra-it/gestione-lega-api:latest
+    container_name: gestione-lega-api
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Default: ${DB_CONNECTION}
+      Jwt__Issuer: classifica-lega
+      Jwt__Audience: classifica-lega
+      Jwt__Key: ${JWT_KEY}
+      Jwt__ExpiryHours: "12"
+      Admin__Username: ${ADMIN_USERNAME}
+      Admin__PasswordHash: ${ADMIN_PASSWORD_HASH}
+    networks:
+      - internal
+      - postgres
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  client:
+    image: ghcr.io/gmarra-it/gestione-lega:latest
+    container_name: gestione-lega-client
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:8090:80"   # host nginx fa da reverse proxy verso questa porta
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+  postgres:
+    external: true
+    name: ${POSTGRES_NETWORK:-postgres_default}

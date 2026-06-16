@@ -2,6 +2,24 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "kill-api-port",
+            "type": "shell",
+            "command": "PIDS=$(lsof -t -i :5188 -i :7174); if [ -n \"$PIDS\" ]; then kill -9 $PIDS; fi",
+            "presentation": {
+                "reveal": "silent",
+                "close": true
+            }
+        },
+        {
+            "label": "kill-client-port",
+            "type": "shell",
+            "command": "PIDS=$(lsof -t -i :4200); if [ -n \"$PIDS\" ]; then kill -9 $PIDS; fi",
+            "presentation": {
+                "reveal": "silent",
+                "close": true
+            }
+        },
+        {
             "label": "build-api",
             "command": "dotnet",
             "type": "process",
@@ -10,6 +28,9 @@
                 "${workspaceFolder}/api/ClassificaLega.Api/ClassificaLega.Api.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
+            ],
+            "dependsOn": [
+                "kill-api-port"
             ],
             "problemMatcher": "$msCompile"
         },
@@ -20,14 +41,26 @@
             "options": {
                 "cwd": "${workspaceFolder}/client"
             },
+            "dependsOn": [
+                "kill-client-port"
+            ],
             "isBackground": true,
             "problemMatcher": {
                 "owner": "typescript",
                 "background": {
                     "activeOnStart": true,
                     "beginsPattern": "Building...|Generating browser application bundles",
-                    "endsPattern": "Application bundle generation complete|Compiled successfully|Angular Live Development Server is listening|Local:\\s+http://localhost:4200"
+                    "endsPattern": "localhost:4200|Compiled successfully|Watch input files"
                 }
+            }
+        },
+        {
+            "label": "stop-all-servers",
+            "type": "shell",
+            "command": "PIDS=$(lsof -t -i :4200 -i :5188 -i :7174); if [ -n \"$PIDS\" ]; then kill -9 $PIDS; fi",
+            "presentation": {
+                "reveal": "silent",
+                "close": true
             }
         }
     ]

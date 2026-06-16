@@ -13,6 +13,7 @@
             "cwd": "${workspaceFolder}/api/ClassificaLega.Api",
             "stopAtEntry": false,
             "preLaunchTask": "build-api",
+            "postDebugTask": "stop-all-servers",
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development"
             }
@@ -23,7 +24,8 @@
             "request": "launch",
             "url": "http://localhost:4200",
             "webRoot": "${workspaceFolder}/client",
-            "preLaunchTask": "start-client"
+            "preLaunchTask": "start-client",
+            "postDebugTask": "stop-all-servers"
         },
         {
             "name": ".NET Core Debugger (launch)",
