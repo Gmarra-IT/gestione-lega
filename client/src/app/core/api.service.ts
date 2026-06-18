@@ -10,7 +10,7 @@ import {
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private http = inject(HttpClient);
-  private base = '/api';
+  private base = 'api';   // relativa al <base href> → funziona sotto sottocartella
 
   // --- auth ---
   login(req: LoginRequest): Observable<LoginResponse> {

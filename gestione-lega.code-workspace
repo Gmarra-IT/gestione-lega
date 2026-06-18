@@ -4,5 +4,9 @@
 			"path": "."
 		}
 	],
-	"settings": {}
+	"settings": {
+		"dotrush.roslyn.projectOrSolutionFiles": [
+			"/Users/gmarra/repos/gestione-lega/api/ClassificaLega.slnx"
+		]
+	}
 }

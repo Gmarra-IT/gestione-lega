@@ -17,12 +17,7 @@ services:
       Admin__PasswordHash: ${ADMIN_PASSWORD_HASH}
     networks:
       - internal
-      - postgres
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+      - database_gmarra-net
 
   client:
     image: ghcr.io/gmarra-it/gestione-lega:latest
@@ -31,13 +26,12 @@ services:
     depends_on:
       - api
     ports:
-      - "127.0.0.1:8090:80"   # host nginx fa da reverse proxy verso questa porta
+      - "127.0.0.1:8060:80"   # host nginx fa da reverse proxy verso questa porta
     networks:
       - internal
 
 networks:
   internal:
-    driver: bridge
-  postgres:
-    external: true
-    name: ${POSTGRES_NETWORK:-postgres_default}
+    driver: bridge          # rete privata client↔api (evita collisione alias "api")
+  database_gmarra-net:
+    external: true          # rete del container postgres esistente
