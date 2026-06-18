@@ -25,13 +25,14 @@ services:
     restart: unless-stopped
     depends_on:
       - api
-    ports:
-      - "127.0.0.1:8060:80"   # host nginx fa da reverse proxy verso questa porta
     networks:
-      - internal
+      - internal        # raggiunge api (alias privato, niente collisione)
+      - gmarra-net      # raggiunto dall'nginx host per nome: gestione-lega-client
 
 networks:
   internal:
     driver: bridge          # rete privata client↔api (evita collisione alias "api")
+  gmarra-net:
+    external: true          # rete condivisa con l'nginx reverse proxy
   database_gmarra-net:
     external: true          # rete del container postgres esistente
