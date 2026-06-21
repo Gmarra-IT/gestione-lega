@@ -1,4 +1,5 @@
 using ClassificaLega.Api.Dtos;
+using ClassificaLega.Api.Tenancy;
 using ClassificaLega.Domain.Entities;
 using ClassificaLega.Domain.Services;
 using ClassificaLega.Infrastructure.Persistence;
@@ -6,11 +7,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ClassificaLega.Api.Services;
 
-public class LeagueWriteService(AppDbContext db)
+public class LeagueWriteService(AppDbContext db, LeagueContext league)
 {
-    private async Task<Season> ActiveSeasonAsync() =>
-        await db.Seasons.FirstOrDefaultAsync(s => s.IsActive)
-        ?? throw ApiException.NotFound("Nessuna stagione attiva.");
+    private async Task<Season> ActiveSeasonAsync()
+    {
+        var leagueId = league.RequireLeagueId();
+        return await db.Seasons.FirstOrDefaultAsync(s => s.LeagueId == leagueId && s.IsActive)
+            ?? throw ApiException.NotFound("Nessuna stagione attiva.");
+    }
 
     public async Task<SeasonDto> UpdateSeasonAsync(UpdateSeasonRequest req)
     {

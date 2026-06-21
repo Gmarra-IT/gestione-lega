@@ -1,44 +1,69 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, tap } from 'rxjs';
 import { ApiService } from './api.service';
+import { LeagueContextService } from './league-context.service';
 import { LoginRequest } from './models';
 
-const TOKEN_KEY = 'classifica.token';
-const EXPIRY_KEY = 'classifica.expiresAt';
+// Token salvato per "scope": slug della lega, oppure '__super' per la console super-admin.
+const SUPER_SCOPE = '__super';
+const tokenKey = (scope: string) => `classifica.token.${scope}`;
+const expiryKey = (scope: string) => `classifica.expiresAt.${scope}`;
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private api = inject(ApiService);
+  private ctx = inject(LeagueContextService);
 
-  private _token = signal<string | null>(this.readValidToken());
-  token = this._token.asReadonly();
-  isAdmin = computed(() => this._token() !== null);
+  // Bump a ogni login/logout per far ricalcolare i computed.
+  private version = signal(0);
+
+  private scope = computed(() => this.ctx.slug() ?? SUPER_SCOPE);
+
+  token = computed<string | null>(() => {
+    this.version();
+    return this.readValidToken(this.scope());
+  });
+
+  isAdmin = computed(() => this.token() !== null);
+  isSuperAdmin = computed(() => decodeRole(this.token()) === 'SuperAdmin');
 
   login(req: LoginRequest): Observable<unknown> {
+    const scope = this.scope();
     return this.api.login(req).pipe(
       tap((res) => {
-        localStorage.setItem(TOKEN_KEY, res.token);
-        localStorage.setItem(EXPIRY_KEY, res.expiresAt);
-        this._token.set(res.token);
+        localStorage.setItem(tokenKey(scope), res.token);
+        localStorage.setItem(expiryKey(scope), res.expiresAt);
+        this.version.update((v) => v + 1);
       }),
     );
   }
 
   logout(): void {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(EXPIRY_KEY);
-    this._token.set(null);
+    const scope = this.scope();
+    localStorage.removeItem(tokenKey(scope));
+    localStorage.removeItem(expiryKey(scope));
+    this.version.update((v) => v + 1);
   }
 
-  private readValidToken(): string | null {
-    const token = localStorage.getItem(TOKEN_KEY);
-    const expiry = localStorage.getItem(EXPIRY_KEY);
+  private readValidToken(scope: string): string | null {
+    const token = localStorage.getItem(tokenKey(scope));
+    const expiry = localStorage.getItem(expiryKey(scope));
     if (!token || !expiry) return null;
     if (new Date(expiry).getTime() <= Date.now()) {
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(EXPIRY_KEY);
+      localStorage.removeItem(tokenKey(scope));
+      localStorage.removeItem(expiryKey(scope));
       return null;
     }
     return token;
+  }
+}
+
+function decodeRole(token: string | null): string | null {
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ?? payload['role'] ?? null;
+  } catch {
+    return null;
   }
 }

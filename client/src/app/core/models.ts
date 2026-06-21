@@ -1,5 +1,35 @@
 // Mirror of the API read/write DTOs (ClassificaLega.Api.Dtos).
 
+export interface League {
+  id: number;
+  slug: string;
+  name: string;
+  title: string | null;
+  isActive: boolean;
+}
+
+export interface CreateLeagueRequest {
+  slug: string;
+  name: string;
+  title?: string | null;
+}
+
+export interface UpdateLeagueRequest {
+  name?: string | null;
+  title?: string | null;
+  isActive?: boolean | null;
+}
+
+export interface LeagueAdmin {
+  id: number;
+  username: string;
+}
+
+export interface CreateLeagueAdminRequest {
+  username: string;
+  password: string;
+}
+
 export interface Season {
   id: number;
   name: string;

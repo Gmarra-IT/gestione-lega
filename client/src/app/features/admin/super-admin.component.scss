@@ -1,0 +1,185 @@
+:host {
+  display: block;
+}
+
+.admin {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+.admin-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.admin-head h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  color: var(--text);
+  flex: 1;
+}
+
+.back {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.back:hover {
+  color: var(--accent);
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 1rem 1.1rem;
+  margin-bottom: 1.25rem;
+}
+
+.card h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
+input {
+  padding: 0.55rem 0.7rem;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+button {
+  padding: 0.55rem 0.9rem;
+  border-radius: 7px;
+  border: 0;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.link-btn {
+  background: transparent;
+  color: var(--text-muted);
+  padding: 0.3rem 0.5rem;
+  font-weight: 500;
+}
+
+.link-btn:hover {
+  color: var(--text);
+}
+
+.login-form,
+.row-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.login-form {
+  flex-direction: column;
+  align-items: stretch;
+  max-width: 320px;
+}
+
+.row-form input {
+  flex: 1;
+  min-width: 120px;
+}
+
+.league-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.league-row {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.info {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.info .name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.info .slug {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-family: ui-monospace, monospace;
+}
+
+.badge {
+  font-size: 0.72rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.actions a {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.actions a:hover {
+  color: var(--accent);
+}
+
+.admins {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--border);
+  margin-top: 0.3rem;
+  padding-top: 0.7rem;
+}
+
+.admins ul {
+  margin: 0 0 0.6rem;
+  padding-left: 1.1rem;
+  color: var(--text);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.err {
+  color: #e5484d;
+  font-size: 0.85rem;
+  margin: 0.3rem 0;
+}

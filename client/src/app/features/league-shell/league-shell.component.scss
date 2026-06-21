@@ -20,6 +20,18 @@
   font-weight: 700;
   color: var(--text);
   white-space: nowrap;
+  text-decoration: none;
+}
+
+.league-select {
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
 }
 
 nav {
@@ -53,7 +65,7 @@ nav a.active {
   flex: 1;
 }
 
-.topbar > a {
+.topbar > a:not(.brand) {
   padding: 0.4rem 0.7rem;
   border-radius: 6px;
   color: var(--text-muted);
@@ -62,7 +74,7 @@ nav a.active {
   font-weight: 500;
 }
 
-.topbar > a:hover {
+.topbar > a:not(.brand):hover {
   background: var(--surface-2);
   color: var(--text);
 }

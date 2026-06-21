@@ -1,4 +1,5 @@
 using ClassificaLega.Api.Dtos;
+using ClassificaLega.Api.Tenancy;
 using ClassificaLega.Domain.Entities;
 using ClassificaLega.Domain.Services;
 using ClassificaLega.Infrastructure.Persistence;
@@ -6,10 +7,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ClassificaLega.Api.Services;
 
-public class LeagueReadService(AppDbContext db)
+public class LeagueReadService(AppDbContext db, LeagueContext league)
 {
-    private Task<Season?> ActiveSeasonAsync() =>
-        db.Seasons.AsNoTracking().FirstOrDefaultAsync(s => s.IsActive);
+    private Task<Season?> ActiveSeasonAsync()
+    {
+        var leagueId = league.RequireLeagueId();
+        return db.Seasons.AsNoTracking().FirstOrDefaultAsync(s => s.LeagueId == leagueId && s.IsActive);
+    }
 
     public async Task<SeasonDto?> GetSeasonAsync()
     {

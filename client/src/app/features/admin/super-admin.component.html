@@ -1,0 +1,71 @@
+<div class="admin">
+  <header class="admin-head">
+    <a routerLink="/" class="back">← Leghe</a>
+    <h1>Gestione leghe</h1>
+    @if (isSuperAdmin()) {
+      <button type="button" class="link-btn" (click)="logout()">Logout</button>
+    }
+  </header>
+
+  @if (!isSuperAdmin()) {
+    <form class="login-form" (ngSubmit)="doLogin()">
+      <p>Accesso super-admin.</p>
+      <input placeholder="Username" [ngModel]="username()" (ngModelChange)="username.set($event)" name="u" autocomplete="username" />
+      <input type="password" placeholder="Password" [ngModel]="password()" (ngModelChange)="password.set($event)" name="p" autocomplete="current-password" />
+      @if (loginError()) { <p class="err">{{ loginError() }}</p> }
+      <button type="submit" [disabled]="busy()">Accedi</button>
+    </form>
+  } @else {
+    @if (error()) { <p class="err">{{ error() }}</p> }
+
+    <section class="card">
+      <h2>Nuova lega</h2>
+      <form class="row-form" (ngSubmit)="createLeague()">
+        <input placeholder="slug (es. pisa)" [ngModel]="newSlug()" (ngModelChange)="newSlug.set($event)" name="s" />
+        <input placeholder="Nome" [ngModel]="newName()" (ngModelChange)="newName.set($event)" name="n" />
+        <input placeholder="Titolo (opzionale)" [ngModel]="newTitle()" (ngModelChange)="newTitle.set($event)" name="t" />
+        <button type="submit">Crea</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Leghe</h2>
+      <ul class="league-list">
+        @for (l of leagues(); track l.id) {
+          <li class="league-row">
+            <div class="info">
+              <span class="name">{{ l.title ?? l.name }}</span>
+              <span class="slug">/{{ l.slug }}</span>
+              @if (!l.isActive) { <span class="badge">disattivata</span> }
+            </div>
+            <div class="actions">
+              <a [routerLink]="['/', l.slug, 'classifica']" target="_blank">apri ↗</a>
+              <button type="button" class="link-btn" (click)="toggleActive(l)">
+                {{ l.isActive ? 'Disattiva' : 'Attiva' }}
+              </button>
+              <button type="button" class="link-btn" (click)="manageAdmins(l)">Admin</button>
+            </div>
+
+            @if (expandedLeagueId() === l.id) {
+              <div class="admins">
+                @if (adminError()) { <p class="err">{{ adminError() }}</p> }
+                @if (admins().length === 0) {
+                  <p class="muted">Nessun admin.</p>
+                } @else {
+                  <ul>
+                    @for (a of admins(); track a.id) { <li>{{ a.username }}</li> }
+                  </ul>
+                }
+                <form class="row-form" (ngSubmit)="createAdmin()">
+                  <input placeholder="Username" [ngModel]="adminUsername()" (ngModelChange)="adminUsername.set($event)" name="au" />
+                  <input type="password" placeholder="Password" [ngModel]="adminPassword()" (ngModelChange)="adminPassword.set($event)" name="ap" />
+                  <button type="submit">Aggiungi admin</button>
+                </form>
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    </section>
+  }
+</div>

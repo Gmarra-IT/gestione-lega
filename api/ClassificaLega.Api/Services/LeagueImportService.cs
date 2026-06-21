@@ -1,4 +1,5 @@
 using ClassificaLega.Api.Dtos;
+using ClassificaLega.Api.Tenancy;
 using ClassificaLega.Domain.Entities;
 using ClassificaLega.Infrastructure.PdfImport;
 using ClassificaLega.Infrastructure.Persistence;
@@ -7,11 +8,14 @@ using Microsoft.EntityFrameworkCore;
 namespace ClassificaLega.Api.Services;
 
 /// <summary>Import of EventLink "Classifica per posizione" PDFs: stateless preview + reviewed commit.</summary>
-public class LeagueImportService(AppDbContext db, LeagueWriteService write)
+public class LeagueImportService(AppDbContext db, LeagueWriteService write, LeagueContext league)
 {
-    private async Task<Season> ActiveSeasonAsync() =>
-        await db.Seasons.FirstOrDefaultAsync(s => s.IsActive)
-        ?? throw ApiException.NotFound("Nessuna stagione attiva.");
+    private async Task<Season> ActiveSeasonAsync()
+    {
+        var leagueId = league.RequireLeagueId();
+        return await db.Seasons.FirstOrDefaultAsync(s => s.LeagueId == leagueId && s.IsActive)
+            ?? throw ApiException.NotFound("Nessuna stagione attiva.");
+    }
 
     public async Task<ImportPreviewResponse> PreviewAsync(Stream pdf)
     {

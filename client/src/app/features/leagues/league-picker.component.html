@@ -1,0 +1,31 @@
+<div class="picker">
+  <header class="picker-head">
+    <h1>Lega Pauper</h1>
+    <p>Scegli una lega per vedere classifica, tappe e statistiche.</p>
+  </header>
+
+  <input
+    class="filter"
+    type="search"
+    placeholder="Filtra leghe…"
+    [ngModel]="filter()"
+    (ngModelChange)="filter.set($event)"
+  />
+
+  @if (filtered().length === 0) {
+    <p class="empty">Nessuna lega trovata.</p>
+  } @else {
+    <ul class="league-list">
+      @for (l of filtered(); track l.slug) {
+        <li>
+          <a [routerLink]="['/', l.slug, 'classifica']">
+            <span class="name">{{ l.title ?? l.name }}</span>
+            <span class="slug">/{{ l.slug }}</span>
+          </a>
+        </li>
+      }
+    </ul>
+  }
+
+  <a class="admin-link" routerLink="/gestione">Gestione leghe</a>
+</div>

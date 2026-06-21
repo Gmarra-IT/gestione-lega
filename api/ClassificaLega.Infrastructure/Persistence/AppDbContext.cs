@@ -5,6 +5,8 @@ namespace ClassificaLega.Infrastructure.Persistence;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
+    public DbSet<League> Leagues => Set<League>();
+    public DbSet<User> Users => Set<User>();
     public DbSet<Season> Seasons => Set<Season>();
     public DbSet<Player> Players => Set<Player>();
     public DbSet<Stage> Stages => Set<Stage>();
@@ -12,6 +14,26 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
     protected override void OnModelCreating(ModelBuilder model)
     {
+        model.Entity<League>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Slug).IsRequired().HasMaxLength(60);
+            e.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            e.Property(x => x.Title).HasMaxLength(200);
+            e.HasIndex(x => x.Slug).IsUnique();
+            e.HasMany(x => x.Seasons).WithOne(x => x.League).HasForeignKey(x => x.LeagueId);
+        });
+
+        model.Entity<User>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Username).IsRequired().HasMaxLength(100);
+            e.Property(x => x.PasswordHash).IsRequired();
+            e.Property(x => x.Role).IsRequired().HasMaxLength(40);
+            e.HasIndex(x => new { x.LeagueId, x.Username }).IsUnique();
+            e.HasOne(x => x.League).WithMany().HasForeignKey(x => x.LeagueId);
+        });
+
         model.Entity<Season>(e =>
         {
             e.HasKey(x => x.Id);

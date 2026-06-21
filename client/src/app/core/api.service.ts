@@ -2,9 +2,10 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
-  ImportCommitRequest, ImportCommitResponse, ImportPreviewResponse,
-  LoginRequest, LoginResponse, Matrix, Progression, Season, Stage, StageResult,
-  StandingRow, UpdateSeasonRequest, UpsertResultRequest, UpsertStageRequest,
+  CreateLeagueAdminRequest, CreateLeagueRequest, ImportCommitRequest, ImportCommitResponse,
+  ImportPreviewResponse, League, LeagueAdmin, LoginRequest, LoginResponse, Matrix, Progression,
+  Season, Stage, StageResult, StandingRow, UpdateLeagueRequest, UpdateSeasonRequest,
+  UpsertResultRequest, UpsertStageRequest,
 } from './models';
 
 @Injectable({ providedIn: 'root' })
@@ -15,6 +16,28 @@ export class ApiService {
   // --- auth ---
   login(req: LoginRequest): Observable<LoginResponse> {
     return this.http.post<LoginResponse>(`${this.base}/auth/login`, req);
+  }
+
+  // --- leghe (elenco pubblico per picker/selettore) ---
+  getLeagues(): Observable<League[]> {
+    return this.http.get<League[]>(`${this.base}/leagues`);
+  }
+
+  // --- gestione leghe (super-admin) ---
+  getAllLeagues(): Observable<League[]> {
+    return this.http.get<League[]>(`${this.base}/leagues/all`);
+  }
+  createLeague(req: CreateLeagueRequest): Observable<League> {
+    return this.http.post<League>(`${this.base}/leagues`, req);
+  }
+  updateLeague(id: number, req: UpdateLeagueRequest): Observable<League> {
+    return this.http.put<League>(`${this.base}/leagues/${id}`, req);
+  }
+  getLeagueAdmins(id: number): Observable<LeagueAdmin[]> {
+    return this.http.get<LeagueAdmin[]>(`${this.base}/leagues/${id}/admins`);
+  }
+  createLeagueAdmin(id: number, req: CreateLeagueAdminRequest): Observable<LeagueAdmin> {
+    return this.http.post<LeagueAdmin>(`${this.base}/leagues/${id}/admins`, req);
   }
 
   // --- read (public) ---

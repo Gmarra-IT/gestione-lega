@@ -28,7 +28,7 @@ jobs:
         working-directory: client
         run: |
           npm ci
-          npm run build -- --base-href=/lega-pauper-massarosa/
+          npm run build -- --base-href=/lega-pauper/
 
       - name: Login to GHCR
         uses: docker/login-action@v3

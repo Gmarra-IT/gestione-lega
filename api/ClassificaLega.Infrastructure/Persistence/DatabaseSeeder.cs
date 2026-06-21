@@ -36,12 +36,31 @@ public static class DatabaseSeeder
         ("Tommaso Duccini",         [null, null, null, null, null,  6,  9]),
     ];
 
+    // Slug della lega creata dal seed (anche backfill nella migration MultiLeague).
+    public const string SeedLeagueSlug = "massarosa";
+
     public static async Task SeedAsync(AppDbContext db)
     {
         if (await db.Seasons.AnyAsync()) return;
 
+        var league = await db.Leagues.FirstOrDefaultAsync(l => l.Slug == SeedLeagueSlug);
+        if (league is null)
+        {
+            league = new League
+            {
+                Slug = SeedLeagueSlug,
+                Name = "Lega Pauper Massarosa",
+                Title = "Lega Pauper · Massarosa",
+                IsActive = true,
+                CreatedAt = DateTimeOffset.UtcNow,
+            };
+            db.Leagues.Add(league);
+            await db.SaveChangesAsync();
+        }
+
         var season = new Season
         {
+            LeagueId = league.Id,
             Name = "Lega Pauper Massarosa 2026",
             TotalStages = 12,
             CountingStages = 8,
@@ -106,6 +125,48 @@ public static class DatabaseSeeder
 
         db.Results.AddRange(results);
         await db.SaveChangesAsync();
+    }
+
+    /// <summary>Garantisce (idempotente) il super-admin globale dalle env e l'admin della lega seed,
+    /// così le credenziali esistenti continuano a funzionare. Eseguito a ogni avvio.</summary>
+    public static async Task EnsureUsersAsync(AppDbContext db, string adminUsername, string adminPasswordHash)
+    {
+        if (string.IsNullOrWhiteSpace(adminUsername) || string.IsNullOrWhiteSpace(adminPasswordHash))
+            return;
+
+        // Super-admin globale (LeagueId null).
+        var hasSuperAdmin = await db.Users.AnyAsync(u => u.Username == adminUsername && u.LeagueId == null);
+        if (!hasSuperAdmin)
+        {
+            db.Users.Add(new User
+            {
+                Username = adminUsername,
+                PasswordHash = adminPasswordHash,
+                Role = UserRoles.SuperAdmin,
+                LeagueId = null,
+                CreatedAt = DateTimeOffset.UtcNow,
+            });
+            await db.SaveChangesAsync();
+        }
+
+        // Admin della lega seed (massarosa), se la lega esiste.
+        var seedLeague = await db.Leagues.FirstOrDefaultAsync(l => l.Slug == SeedLeagueSlug);
+        if (seedLeague is not null)
+        {
+            var hasLeagueAdmin = await db.Users.AnyAsync(u => u.Username == adminUsername && u.LeagueId == seedLeague.Id);
+            if (!hasLeagueAdmin)
+            {
+                db.Users.Add(new User
+                {
+                    Username = adminUsername,
+                    PasswordHash = adminPasswordHash,
+                    Role = UserRoles.LeagueAdmin,
+                    LeagueId = seedLeague.Id,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                });
+                await db.SaveChangesAsync();
+            }
+        }
     }
 
     public static string Normalize(string name) =>

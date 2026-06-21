@@ -1,10 +1,19 @@
 import { inject } from '@angular/core';
-import { CanActivateFn, Router } from '@angular/router';
+import { ActivatedRouteSnapshot, CanActivateFn, Router } from '@angular/router';
 import { AuthService } from './auth.service';
 
-export const adminGuard: CanActivateFn = (_route, state) => {
+function slugOf(route: ActivatedRouteSnapshot): string | null {
+  for (let r: ActivatedRouteSnapshot | null = route; r; r = r.parent) {
+    const s = r.paramMap.get('slug');
+    if (s) return s;
+  }
+  return null;
+}
+
+export const adminGuard: CanActivateFn = (route, state) => {
   const auth = inject(AuthService);
   const router = inject(Router);
   if (auth.isAdmin()) return true;
-  return router.createUrlTree(['/login'], { queryParams: { redirect: state.url } });
+  const slug = slugOf(route);
+  return router.createUrlTree(['/', slug, 'login'], { queryParams: { redirect: state.url } });
 };

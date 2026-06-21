@@ -1,0 +1,33 @@
+<header class="topbar">
+  <a class="brand" routerLink="/">{{ brand() }}</a>
+
+  @if (leagues().length > 1) {
+    <select class="league-select" (change)="switchTo($any($event.target).value)">
+      @for (l of leagues(); track l.slug) {
+        <option [value]="l.slug" [selected]="l.slug === slug()">{{ l.title ?? l.name }}</option>
+      }
+    </select>
+  }
+
+  <nav>
+    <a [routerLink]="['/', slug(), 'classifica']" routerLinkActive="active">Classifica</a>
+    <a [routerLink]="['/', slug(), 'tappe']" routerLinkActive="active">Tappe</a>
+    @if (isAdmin()) {
+      <a [routerLink]="['/', slug(), 'inserimento']" routerLinkActive="active">Inserimento</a>
+      <a [routerLink]="['/', slug(), 'importazione']" routerLinkActive="active">Import PDF</a>
+      <a [routerLink]="['/', slug(), 'impostazioni']" routerLinkActive="active">Impostazioni</a>
+    }
+  </nav>
+
+  <div class="spacer"></div>
+
+  @if (isAdmin()) {
+    <button type="button" class="link-btn" (click)="logout()">Logout</button>
+  } @else {
+    <a [routerLink]="['/', slug(), 'login']" routerLinkActive="active">Login</a>
+  }
+</header>
+
+<main class="content">
+  <router-outlet />
+</main>
