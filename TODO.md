@@ -18,6 +18,6 @@ Gestione season, visualizzazione season passate.
 
 Gestione persone - dati aggiuntivi, legame con leghe..
 
-
+<!-- 
 Gestione token super admin (evitare che il cambio lega faccia ripassare dal login). 
-Gestione menu superadmin
+Gestione menu superadmin -->

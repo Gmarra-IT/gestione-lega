@@ -1,5 +1,13 @@
 <h1>Inserimento risultato</h1>
 
+<div class="tabs">
+  <button type="button" [class.active]="tab() === 'manuale'" (click)="tab.set('manuale')">Manuale</button>
+  <button type="button" [class.active]="tab() === 'import'" (click)="tab.set('import')">Import PDF</button>
+</div>
+
+@if (tab() === 'import') {
+  <app-importazione />
+} @else {
 <div class="layout">
   <form class="card form" (ngSubmit)="submit()">
     <div>
@@ -97,3 +105,4 @@
     <p class="hint">Reinserire lo stesso giocatore sovrascrive il suo punteggio.</p>
   </div>
 </div>
+}

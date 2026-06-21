@@ -2,10 +2,10 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
-  CreateLeagueAdminRequest, CreateLeagueRequest, ImportCommitRequest, ImportCommitResponse,
-  ImportPreviewResponse, League, LeagueAdmin, LoginRequest, LoginResponse, Matrix, Progression,
-  Season, Stage, StageResult, StandingRow, UpdateLeagueRequest, UpdateSeasonRequest,
-  UpsertResultRequest, UpsertStageRequest,
+  CreateLeagueAdminRequest, CreateLeagueRequest, CreateSeasonRequest, ImportCommitRequest,
+  ImportCommitResponse, ImportPreviewResponse, League, LeagueAdmin, LoginRequest, LoginResponse,
+  Matrix, Progression, Season, Stage, StageResult, StandingRow, UpdateLeagueAdminRequest,
+  UpdateLeagueRequest, UpdateSeasonRequest, UpsertResultRequest, UpsertStageRequest,
 } from './models';
 
 @Injectable({ providedIn: 'root' })
@@ -39,6 +39,12 @@ export class ApiService {
   createLeagueAdmin(id: number, req: CreateLeagueAdminRequest): Observable<LeagueAdmin> {
     return this.http.post<LeagueAdmin>(`${this.base}/leagues/${id}/admins`, req);
   }
+  updateLeagueAdmin(id: number, userId: number, req: UpdateLeagueAdminRequest): Observable<LeagueAdmin> {
+    return this.http.put<LeagueAdmin>(`${this.base}/leagues/${id}/admins/${userId}`, req);
+  }
+  deleteLeagueAdmin(id: number, userId: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/leagues/${id}/admins/${userId}`);
+  }
 
   // --- logo lega ---
   // URL pubblico del logo (slug nel path). `v` per cache-busting dopo un upload.
@@ -69,6 +75,9 @@ export class ApiService {
   getSeason(): Observable<Season> {
     return this.http.get<Season>(`${this.base}/season`);
   }
+  getSeasons(): Observable<Season[]> {
+    return this.http.get<Season[]>(`${this.base}/seasons`);
+  }
   getStandings(): Observable<StandingRow[]> {
     return this.http.get<StandingRow[]>(`${this.base}/standings`);
   }
@@ -88,6 +97,9 @@ export class ApiService {
   // --- write (admin) ---
   updateSeason(req: UpdateSeasonRequest): Observable<Season> {
     return this.http.put<Season>(`${this.base}/season`, req);
+  }
+  createSeason(req: CreateSeasonRequest): Observable<Season> {
+    return this.http.post<Season>(`${this.base}/seasons`, req);
   }
   upsertStage(req: UpsertStageRequest): Observable<Stage> {
     return this.http.post<Stage>(`${this.base}/stages`, req);

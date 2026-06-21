@@ -6,6 +6,8 @@ public record LoginResponse(string Token, DateTimeOffset ExpiresAt);
 
 public record UpdateSeasonRequest(int TotalStages, int CountingStages);
 
+public record CreateSeasonRequest(string Name, int TotalStages, int CountingStages);
+
 public record UpsertResultRequest(int StageNumber, int? PlayerId, string? NewPlayerName, int MatchPoints);
 
 public record UpdateResultRequest(int MatchPoints);

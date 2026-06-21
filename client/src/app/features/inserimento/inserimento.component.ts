@@ -1,17 +1,23 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
+import { LeagueContextService } from '../../core/league-context.service';
 import { Season, Stage, StageResult, StandingRow } from '../../core/models';
 import { bonusPartecipazione, bonusRisultato } from '../../core/scoring';
+import { ImportazioneComponent } from '../importazione/importazione.component';
 
 @Component({
   selector: 'app-inserimento',
-  imports: [FormsModule],
+  imports: [FormsModule, ImportazioneComponent],
   templateUrl: './inserimento.component.html',
   styleUrl: './inserimento.component.scss',
 })
 export class InserimentoComponent {
   private api = inject(ApiService);
+  private ctx = inject(LeagueContextService);
+
+  // Tab attiva: inserimento manuale o import PDF.
+  tab = signal<'manuale' | 'import'>('manuale');
 
   season = signal<Season | null>(null);
   stages = signal<Stage[]>([]);
@@ -39,11 +45,10 @@ export class InserimentoComponent {
     this.matchPoints() + this.previewBonusRisultato() + this.previewBonusPartecipazione());
 
   constructor() {
-    this.api.getSeason().subscribe((s) => this.season.set(s));
-    this.refreshPlayers();
-    this.api.getStages().subscribe((st) => {
-      this.stages.set(st);
-      if (st.length && this.stageNumber() === null) this.stageNumber.set(st[0].number);
+    // Ricarica i dati al primo avvio e a ogni cambio di stagione selezionata.
+    effect(() => {
+      this.ctx.selectedSeasonId();
+      this.load();
     });
 
     // reload the selected stage's results + recompute prior participations on relevant changes
@@ -53,6 +58,17 @@ export class InserimentoComponent {
     });
     effect(() => {
       this.recomputePrior(this.mode(), this.playerId(), this.stageNumber());
+    });
+  }
+
+  private load(): void {
+    this.api.getSeason().subscribe((s) => this.season.set(s));
+    this.refreshPlayers();
+    // Reset selezione tappa: la stagione potrebbe avere tappe diverse → riseleziona la prima.
+    this.stageNumber.set(null);
+    this.api.getStages().subscribe((st) => {
+      this.stages.set(st);
+      if (st.length) this.stageNumber.set(st[0].number);
     });
   }
 

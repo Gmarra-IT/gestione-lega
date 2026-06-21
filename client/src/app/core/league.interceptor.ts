@@ -1,7 +1,7 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { RESERVED_SLUGS } from './league-context.service';
+import { LeagueContextService, RESERVED_SLUGS } from './league-context.service';
 
 // Slug della lega = primo segmento dell'URL corrente (es. /pisa/classifica → "pisa").
 // Derivarlo dall'URL (non da uno stato a parte) evita problemi di timing col ciclo
@@ -16,5 +16,11 @@ function slugFromUrl(url: string): string | null {
 export const leagueInterceptor: HttpInterceptorFn = (req, next) => {
   const slug = slugFromUrl(inject(Router).url);
   if (!slug) return next(req);
-  return next(req.clone({ setHeaders: { 'X-League-Slug': slug } }));
+
+  const headers: Record<string, string> = { 'X-League-Slug': slug };
+  // Stagione selezionata (se non l'attiva): le API pivotano su questa.
+  const seasonId = inject(LeagueContextService).selectedSeasonId();
+  if (seasonId != null) headers['X-Season-Id'] = String(seasonId);
+
+  return next(req.clone({ setHeaders: headers }));
 };

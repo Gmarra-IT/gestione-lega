@@ -9,6 +9,10 @@ public class LeagueContext
 {
     public League? Current { get; set; }
 
+    // Stagione richiesta dall'header X-Season-Id (opzionale). Null → stagione attiva.
+    // I service validano che appartenga alla lega corrente prima di usarla.
+    public int? RequestedSeasonId { get; set; }
+
     public int RequireLeagueId() =>
         Current?.Id ?? throw ApiException.NotFound("Lega non specificata o inesistente.");
 }

@@ -31,6 +31,11 @@ export interface CreateLeagueAdminRequest {
   password: string;
 }
 
+export interface UpdateLeagueAdminRequest {
+  username?: string | null;
+  password?: string | null;
+}
+
 export interface Season {
   id: number;
   name: string;
@@ -112,6 +117,12 @@ export interface LoginResponse {
 }
 
 export interface UpdateSeasonRequest {
+  totalStages: number;
+  countingStages: number;
+}
+
+export interface CreateSeasonRequest {
+  name: string;
   totalStages: number;
   countingStages: number;
 }

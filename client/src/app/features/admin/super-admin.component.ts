@@ -34,12 +34,22 @@ export class SuperAdminComponent {
   newName = signal('');
   newTitle = signal('');
 
+  // modifica dettagli lega (inline)
+  editingLeagueId = signal<number | null>(null);
+  editName = signal('');
+  editTitle = signal('');
+
   // gestione admin per lega espansa
   expandedLeagueId = signal<number | null>(null);
   admins = signal<LeagueAdmin[]>([]);
   adminUsername = signal('');
   adminPassword = signal('');
   adminError = signal<string | null>(null);
+
+  // modifica admin esistente (inline)
+  editingAdminId = signal<number | null>(null);
+  editAdminUsername = signal('');
+  editAdminPassword = signal('');
 
   expandedLeague = computed(() =>
     this.leagues().find((l) => l.id === this.expandedLeagueId()) ?? null,
@@ -95,6 +105,32 @@ export class SuperAdminComponent {
     });
   }
 
+  startEditLeague(l: League): void {
+    this.error.set(null);
+    this.editingLeagueId.set(l.id);
+    this.editName.set(l.name);
+    this.editTitle.set(l.title ?? '');
+  }
+
+  cancelEditLeague(): void {
+    this.editingLeagueId.set(null);
+  }
+
+  saveLeague(l: League): void {
+    this.error.set(null);
+    this.api.updateLeague(l.id, {
+      name: this.editName(),
+      title: this.editTitle() || null,
+    }).subscribe({
+      next: () => {
+        this.editingLeagueId.set(null);
+        this.ctx.loadLeagues();
+        this.reload();
+      },
+      error: (err) => this.error.set(err.error?.error ?? 'Errore aggiornamento lega.'),
+    });
+  }
+
   toggleActive(l: League): void {
     this.api.updateLeague(l.id, { isActive: !l.isActive }).subscribe({
       next: () => {
@@ -131,9 +167,52 @@ export class SuperAdminComponent {
       next: () => {
         this.adminUsername.set('');
         this.adminPassword.set('');
-        this.api.getLeagueAdmins(id).subscribe((a) => this.admins.set(a));
+        this.reloadAdmins(id);
       },
       error: (err) => this.adminError.set(err.error?.error ?? 'Errore creazione admin.'),
+    });
+  }
+
+  private reloadAdmins(leagueId: number): void {
+    this.api.getLeagueAdmins(leagueId).subscribe((a) => this.admins.set(a));
+  }
+
+  startEditAdmin(a: LeagueAdmin): void {
+    this.adminError.set(null);
+    this.editingAdminId.set(a.id);
+    this.editAdminUsername.set(a.username);
+    this.editAdminPassword.set('');
+  }
+
+  cancelEditAdmin(): void {
+    this.editingAdminId.set(null);
+  }
+
+  saveAdmin(a: LeagueAdmin): void {
+    const id = this.expandedLeagueId();
+    if (id == null) return;
+    this.adminError.set(null);
+    // Password vuota = invariata (solo rename).
+    this.api.updateLeagueAdmin(id, a.id, {
+      username: this.editAdminUsername(),
+      password: this.editAdminPassword() || null,
+    }).subscribe({
+      next: () => {
+        this.editingAdminId.set(null);
+        this.reloadAdmins(id);
+      },
+      error: (err) => this.adminError.set(err.error?.error ?? 'Errore aggiornamento admin.'),
+    });
+  }
+
+  deleteAdmin(a: LeagueAdmin): void {
+    const id = this.expandedLeagueId();
+    if (id == null) return;
+    if (!confirm(`Eliminare l'admin "${a.username}"?`)) return;
+    this.adminError.set(null);
+    this.api.deleteLeagueAdmin(id, a.id).subscribe({
+      next: () => this.reloadAdmins(id),
+      error: (err) => this.adminError.set(err.error?.error ?? 'Errore eliminazione admin.'),
     });
   }
 }

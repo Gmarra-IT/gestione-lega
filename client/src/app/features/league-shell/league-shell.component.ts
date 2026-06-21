@@ -3,6 +3,7 @@ import { Component, HostListener, computed, effect, inject, input, signal } from
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
+import { leagueAvatarColor, leagueInitials } from '../../core/league-avatar';
 import { LeagueContextService, RESERVED_SLUGS } from '../../core/league-context.service';
 
 @Component({
@@ -27,6 +28,10 @@ export class LeagueShellComponent {
   current = this.ctx.current;
   currentSlug = this.ctx.slug;
 
+  // Selettore stagione.
+  seasons = this.ctx.seasons;
+  currentSeasonId = computed(() => this.ctx.currentSeason()?.id ?? null);
+
   // Drawer mobile.
   menuOpen = signal(false);
 
@@ -35,19 +40,9 @@ export class LeagueShellComponent {
     this.current()?.hasLogo ? this.api.logoUrl(this.slug(), this.ctx.logoVersion()) : null,
   );
 
-  // Avatar fallback: iniziali + colore derivato dal nome.
-  initials = computed(() => {
-    const name = this.current()?.name ?? this.brand();
-    const parts = name.trim().split(/\s+/).filter(Boolean);
-    const letters = parts.length >= 2 ? parts[0][0] + parts[1][0] : name.slice(0, 2);
-    return letters.toUpperCase();
-  });
-  avatarColor = computed(() => {
-    const s = this.slug() || this.brand();
-    let h = 0;
-    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
-    return `hsl(${h} 55% 45%)`;
-  });
+  // Avatar fallback condiviso (vedi core/league-avatar).
+  initials = computed(() => leagueInitials(this.current()?.name ?? this.brand()));
+  avatarColor = computed(() => leagueAvatarColor(this.slug() || this.brand()));
 
   constructor() {
     // Tiene allineato il contesto allo slug della route e valida lo slug.
@@ -67,12 +62,15 @@ export class LeagueShellComponent {
     if (this.ctx.leagues().length === 0) this.ctx.loadLeagues();
   }
 
-  switchTo(slug: string): void {
-    if (slug) this.router.navigate(['/', slug, 'classifica']);
-  }
-
   closeMenu(): void {
     this.menuOpen.set(false);
+  }
+
+  onSeasonChange(event: Event): void {
+    const id = +(event.target as HTMLSelectElement).value;
+    const season = this.seasons().find((s) => s.id === id);
+    // Stagione attiva → null (segue l'attiva); altrimenti fissa la selezione.
+    this.ctx.setSelectedSeasonId(season?.isActive ? null : id);
   }
 
   @HostListener('document:keydown.escape')

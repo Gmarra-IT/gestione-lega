@@ -1,7 +1,7 @@
 <h1>Impostazioni stagione</h1>
 
 @if (season(); as s) {
-  <p class="muted">{{ s.name }}</p>
+  <p class="muted">{{ s.name }}{{ s.isActive ? '' : ' · stagione archiviata' }}</p>
 
   <form class="card settings" (ngSubmit)="save()">
     <div>
@@ -27,6 +27,33 @@
 } @else {
   <p class="muted">Caricamento…</p>
 }
+
+<h2 class="logo-title">Nuova stagione</h2>
+<form class="card settings" (ngSubmit)="createSeason()">
+  <p class="hint">Crea una nuova stagione: diventa quella attiva e archivia la precedente (resta consultabile dal selettore). Parte senza giocatori né tappe.</p>
+  <div>
+    <label for="newName">Nome stagione</label>
+    <input id="newName" name="newName" placeholder="es. Massarosa 2027"
+           [ngModel]="newSeasonName()" (ngModelChange)="newSeasonName.set($event)" />
+  </div>
+  <div>
+    <label for="newTotal">Numero tappe totali</label>
+    <input id="newTotal" type="number" min="1" name="newTotal"
+           [ngModel]="newTotalStages()" (ngModelChange)="newTotalStages.set(+$event)" />
+  </div>
+  <div>
+    <label for="newCounting">Tappe valide al conteggio (Best N)</label>
+    <input id="newCounting" type="number" min="1" [max]="newTotalStages()" name="newCounting"
+           [ngModel]="newCountingStages()" (ngModelChange)="newCountingStages.set(+$event)" />
+  </div>
+
+  @if (createError()) { <div class="msg error">{{ createError() }}</div> }
+  @if (createOk()) { <div class="msg ok">{{ createOk() }}</div> }
+
+  <button class="btn" type="submit" [disabled]="createBusy() || !newSeasonName().trim()">
+    {{ createBusy() ? 'Creazione…' : 'Crea stagione' }}
+  </button>
+</form>
 
 <h2 class="logo-title">Logo della lega</h2>
 <div class="card logo-card">

@@ -64,20 +64,23 @@
   font-size: 1rem;
 }
 
-.league-select {
-  padding: 0.35rem 0.5rem;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text);
-  font-size: 0.85rem;
-  font-family: inherit;
-  cursor: pointer;
-  width: auto;
-}
-
 .spacer {
   flex: 1;
+}
+
+/* --- selettore stagione --- */
+.season-select {
+  flex: 0 0 auto;
+  max-width: 11rem;
+  margin-right: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
 }
 
 /* --- nav links (condivisi desktop/drawer) --- */
@@ -216,9 +219,6 @@
   .hamburger {
     display: flex;
   }
-  .league-select {
-    max-width: 9rem;
-  }
   .content {
     padding: 1rem 0.85rem 2.5rem;
   }
@@ -227,8 +227,5 @@
 @media (max-width: 420px) {
   .brand-name {
     display: none;
-  }
-  .league-select {
-    max-width: 7rem;
   }
 }

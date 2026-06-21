@@ -1,6 +1,7 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, effect, inject, signal, viewChild } from '@angular/core';
 import { Chart, ChartConfiguration, registerables } from 'chart.js';
 import { ApiService } from '../../core/api.service';
+import { LeagueContextService } from '../../core/league-context.service';
 import { Matrix, MatrixRow } from '../../core/models';
 
 Chart.register(...registerables);
@@ -17,6 +18,7 @@ const PALETTE = [
 })
 export class TappeComponent implements AfterViewInit, OnDestroy {
   private api = inject(ApiService);
+  private ctx = inject(LeagueContextService);
   private canvas = viewChild<ElementRef<HTMLCanvasElement>>('chart');
 
   matrix = signal<Matrix | null>(null);
@@ -28,14 +30,19 @@ export class TappeComponent implements AfterViewInit, OnDestroy {
   private viewReady = signal(false);
 
   constructor() {
-    this.api.getMatrix().subscribe({
-      next: (m) => {
-        this.matrix.set(m);
-        // pre-select the top 5 by position
-        this.selected.set(new Set(m.rows.slice(0, 5).map((r) => r.playerId)));
-        this.loading.set(false);
-      },
-      error: () => { this.error.set('Errore nel caricamento delle tappe.'); this.loading.set(false); },
+    // Ricarica al primo avvio e a ogni cambio di stagione selezionata.
+    effect(() => {
+      this.ctx.selectedSeasonId();
+      this.loading.set(true);
+      this.api.getMatrix().subscribe({
+        next: (m) => {
+          this.matrix.set(m);
+          // pre-select the top 5 by position
+          this.selected.set(new Set(m.rows.slice(0, 5).map((r) => r.playerId)));
+          this.loading.set(false);
+        },
+        error: () => { this.error.set('Errore nel caricamento delle tappe.'); this.loading.set(false); },
+      });
     });
 
     effect(() => {

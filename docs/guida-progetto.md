@@ -98,7 +98,9 @@ JWT. La lega di riferimento viene risolta dall'header `X-League-Slug`.
   altrimenti il claim `leagueId` del token deve coincidere con la lega del contesto, altrimenti
   risposta 403): `PUT /season`, `POST /stages`, `POST|PUT|DELETE /results`, `POST /import/pdf`
   (anteprima dell'import), `POST /import/commit`, `POST|DELETE /logo` (carica o rimuove il logo
-  della lega corrente; valida formato PNG/JPEG/WebP/SVG e dimensione max 512 KB).
+  della lega corrente; valida formato PNG/JPEG/WebP/SVG e dimensione max 1 MB come backstop.
+  Il client ridimensiona e ricomprime l'immagine in WebP prima dell'upload — `core/image-compress.ts`,
+  lato massimo 512px — così l'admin può caricare anche foto pesanti dal telefono senza preparare il file).
 - **Super-admin** (gruppo `/leagues`, filtro che richiede `Role == SuperAdmin`):
   `GET /leagues/all`, `POST /leagues` (crea una lega, generando anche la sua prima stagione attiva),
   `PUT /leagues/{id}`, `GET /leagues/{id}/admins`, `POST /leagues/{id}/admins`,
@@ -138,7 +140,12 @@ npm test                                   # karma/jasmine
   con le sue pagine figlie (classifica, tappe, inserimento, importazione, impostazioni, login).
   Il `league.interceptor` ricava lo slug dal primo segmento dell'URL corrente e lo inserisce
   nell'header `X-League-Slug` di ogni richiesta. L'`auth.service` salva il token separatamente per
-  ciascuno scope (lo slug della lega, oppure `__super` per la console super-admin).
+  ciascuno scope (lo slug della lega, oppure `__super` per la console super-admin). Quando il login
+  è di un **super-admin**, il token viene replicato anche sotto lo scope `__super` (globale): così
+  `isSuperAdmin()` lo valuta solo da lì — indipendente dalla lega corrente — e sia `token()` sia
+  `isAdminForScope()` ripiegano sul token `__super` se manca quello della lega. In pratica un
+  super-admin, anche se ha fatto login dalla pagina di una lega, è riconosciuto come tale ovunque e
+  può amministrare qualsiasi lega senza dover rifare l'accesso.
 - **Testata della `league-shell`**: a sinistra c'è un blocco-brand con il logo dell'app
   (`app-logo.svg`), poi il logo della lega — l'immagine vera se la lega ne ha uno, altrimenti un
   avatar con le iniziali e un colore derivato dallo slug — e il nome della lega. La navigazione

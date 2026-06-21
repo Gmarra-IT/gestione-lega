@@ -91,7 +91,11 @@ app.Use(async (ctx, next) =>
         var db = ctx.RequestServices.GetRequiredService<AppDbContext>();
         var league = await db.Leagues.AsNoTracking()
             .FirstOrDefaultAsync(l => l.Slug == slug && l.IsActive);
-        ctx.RequestServices.GetRequiredService<LeagueContext>().Current = league;
+        var leagueCtx = ctx.RequestServices.GetRequiredService<LeagueContext>();
+        leagueCtx.Current = league;
+        // Stagione richiesta (opzionale): null/non-numerica → stagione attiva.
+        if (int.TryParse(ctx.Request.Headers["X-Season-Id"].FirstOrDefault(), out var seasonId))
+            leagueCtx.RequestedSeasonId = seasonId;
     }
     await next();
 });
@@ -126,6 +130,10 @@ api.MapGet("/leagues/{slug}/logo", async (string slug, LeagueAdminService svc, H
 // --- read (public) ---
 api.MapGet("/season", async (LeagueReadService svc) =>
     await svc.GetSeasonAsync() is { } s ? Results.Ok(s) : Results.NotFound());
+
+// Elenco stagioni della lega (per il selettore: attiva + precedenti).
+api.MapGet("/seasons", async (LeagueReadService svc) =>
+    Results.Ok(await svc.GetSeasonsAsync()));
 
 api.MapGet("/standings", async (LeagueReadService svc) =>
     await svc.GetStandingsAsync() is { } r ? Results.Ok(r) : Results.NotFound());
@@ -164,6 +172,10 @@ var admin = api.MapGroup("").RequireAuthorization().AddEndpointFilter(async (ctx
 
 admin.MapPut("/season", async (UpdateSeasonRequest req, LeagueWriteService svc) =>
     Results.Ok(await svc.UpdateSeasonAsync(req)));
+
+// Crea una nuova stagione (diventa attiva, archivia la precedente).
+admin.MapPost("/seasons", async (CreateSeasonRequest req, LeagueWriteService svc) =>
+    Results.Ok(await svc.CreateSeasonAsync(req)));
 
 admin.MapPost("/stages", async (UpsertStageRequest req, LeagueWriteService svc) =>
     Results.Ok(await svc.UpsertStageAsync(req)));
@@ -238,6 +250,15 @@ superAdmin.MapDelete("/{id:int}/logo", async (int id, LeagueAdminService svc) =>
 
 superAdmin.MapPost("/{id:int}/admins", async (int id, CreateLeagueAdminRequest req, LeagueAdminService svc) =>
     Results.Ok(await svc.CreateLeagueAdminAsync(id, req)));
+
+superAdmin.MapPut("/{id:int}/admins/{userId:int}", async (int id, int userId, UpdateLeagueAdminRequest req, LeagueAdminService svc) =>
+    Results.Ok(await svc.UpdateLeagueAdminAsync(id, userId, req)));
+
+superAdmin.MapDelete("/{id:int}/admins/{userId:int}", async (int id, int userId, LeagueAdminService svc) =>
+{
+    await svc.DeleteLeagueAdminAsync(id, userId);
+    return Results.NoContent();
+});
 
 app.Run();
 

@@ -9,21 +9,40 @@ namespace ClassificaLega.Api.Services;
 
 public class LeagueReadService(AppDbContext db, LeagueContext league)
 {
-    private Task<Season?> ActiveSeasonAsync()
+    // Stagione su cui pivotano le query: quella richiesta (X-Season-Id, se appartiene alla
+    // lega) oppure, in mancanza, quella attiva.
+    private async Task<Season?> CurrentSeasonAsync()
     {
         var leagueId = league.RequireLeagueId();
-        return db.Seasons.AsNoTracking().FirstOrDefaultAsync(s => s.LeagueId == leagueId && s.IsActive);
+        if (league.RequestedSeasonId is int sid)
+        {
+            var requested = await db.Seasons.AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == sid && s.LeagueId == leagueId);
+            if (requested is not null) return requested;
+        }
+        return await db.Seasons.AsNoTracking().FirstOrDefaultAsync(s => s.LeagueId == leagueId && s.IsActive);
     }
 
     public async Task<SeasonDto?> GetSeasonAsync()
     {
-        var s = await ActiveSeasonAsync();
+        var s = await CurrentSeasonAsync();
         return s is null ? null : new SeasonDto(s.Id, s.Name, s.TotalStages, s.CountingStages, s.IsActive);
+    }
+
+    // Tutte le stagioni della lega, più recenti prima (per il selettore).
+    public async Task<IReadOnlyList<SeasonDto>> GetSeasonsAsync()
+    {
+        var leagueId = league.RequireLeagueId();
+        return await db.Seasons.AsNoTracking()
+            .Where(s => s.LeagueId == leagueId)
+            .OrderByDescending(s => s.IsActive).ThenByDescending(s => s.CreatedAt).ThenByDescending(s => s.Id)
+            .Select(s => new SeasonDto(s.Id, s.Name, s.TotalStages, s.CountingStages, s.IsActive))
+            .ToListAsync();
     }
 
     public async Task<IReadOnlyList<StandingRowDto>?> GetStandingsAsync()
     {
-        var season = await ActiveSeasonAsync();
+        var season = await CurrentSeasonAsync();
         if (season is null) return null;
 
         var players = await db.Players.AsNoTracking()
@@ -47,7 +66,7 @@ public class LeagueReadService(AppDbContext db, LeagueContext league)
 
     public async Task<IReadOnlyList<StageDto>?> GetStagesAsync()
     {
-        var season = await ActiveSeasonAsync();
+        var season = await CurrentSeasonAsync();
         if (season is null) return null;
 
         return await db.Stages.AsNoTracking()
@@ -59,7 +78,7 @@ public class LeagueReadService(AppDbContext db, LeagueContext league)
 
     public async Task<IReadOnlyList<StageResultDto>?> GetStageResultsAsync(int stageNumber)
     {
-        var season = await ActiveSeasonAsync();
+        var season = await CurrentSeasonAsync();
         if (season is null) return null;
 
         var stage = await db.Stages.AsNoTracking()
@@ -83,7 +102,7 @@ public class LeagueReadService(AppDbContext db, LeagueContext league)
 
     public async Task<ProgressionDto?> GetProgressionAsync(int playerId)
     {
-        var season = await ActiveSeasonAsync();
+        var season = await CurrentSeasonAsync();
         if (season is null) return null;
 
         var player = await db.Players.AsNoTracking()
@@ -111,7 +130,7 @@ public class LeagueReadService(AppDbContext db, LeagueContext league)
 
     public async Task<MatrixDto?> GetMatrixAsync()
     {
-        var season = await ActiveSeasonAsync();
+        var season = await CurrentSeasonAsync();
         if (season is null) return null;
 
         var players = await db.Players.AsNoTracking()

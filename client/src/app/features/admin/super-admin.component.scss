@@ -161,6 +161,12 @@ button:disabled {
   color: var(--accent);
 }
 
+/* Form di modifica inline (lega o admin): occupa l'intera riga. */
+.row-form.edit {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
 .admins {
   grid-column: 1 / -1;
   border-top: 1px solid var(--border);
@@ -172,6 +178,38 @@ button:disabled {
   margin: 0 0 0.6rem;
   padding-left: 1.1rem;
   color: var(--text);
+}
+
+.admin-list {
+  list-style: none;
+  padding-left: 0 !important;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.admin-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-list .username {
+  flex: 1;
+  min-width: 120px;
+}
+
+.admin-list .row-actions {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.link-btn.danger {
+  color: #e5484d;
+}
+
+.link-btn.danger:hover {
+  color: #f2555a;
 }
 
 .muted {

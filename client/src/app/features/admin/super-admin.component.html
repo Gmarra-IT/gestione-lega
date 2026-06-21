@@ -40,11 +40,21 @@
             </div>
             <div class="actions">
               <a [routerLink]="['/', l.slug, 'classifica']" target="_blank">apri ↗</a>
+              <button type="button" class="link-btn" (click)="startEditLeague(l)">Modifica</button>
               <button type="button" class="link-btn" (click)="toggleActive(l)">
                 {{ l.isActive ? 'Disattiva' : 'Attiva' }}
               </button>
               <button type="button" class="link-btn" (click)="manageAdmins(l)">Admin</button>
             </div>
+
+            @if (editingLeagueId() === l.id) {
+              <form class="row-form edit" (ngSubmit)="saveLeague(l)">
+                <input placeholder="Nome" [ngModel]="editName()" (ngModelChange)="editName.set($event)" name="en" />
+                <input placeholder="Titolo (opzionale)" [ngModel]="editTitle()" (ngModelChange)="editTitle.set($event)" name="et" />
+                <button type="submit">Salva</button>
+                <button type="button" class="link-btn" (click)="cancelEditLeague()">Annulla</button>
+              </form>
+            }
 
             @if (expandedLeagueId() === l.id) {
               <div class="admins">
@@ -52,8 +62,25 @@
                 @if (admins().length === 0) {
                   <p class="muted">Nessun admin.</p>
                 } @else {
-                  <ul>
-                    @for (a of admins(); track a.id) { <li>{{ a.username }}</li> }
+                  <ul class="admin-list">
+                    @for (a of admins(); track a.id) {
+                      <li>
+                        @if (editingAdminId() === a.id) {
+                          <form class="row-form edit" (ngSubmit)="saveAdmin(a)">
+                            <input placeholder="Username" [ngModel]="editAdminUsername()" (ngModelChange)="editAdminUsername.set($event)" name="eau" />
+                            <input type="password" placeholder="Nuova password (vuoto = invariata)" [ngModel]="editAdminPassword()" (ngModelChange)="editAdminPassword.set($event)" name="eap" autocomplete="new-password" />
+                            <button type="submit">Salva</button>
+                            <button type="button" class="link-btn" (click)="cancelEditAdmin()">Annulla</button>
+                          </form>
+                        } @else {
+                          <span class="username">{{ a.username }}</span>
+                          <span class="row-actions">
+                            <button type="button" class="link-btn" (click)="startEditAdmin(a)">Modifica</button>
+                            <button type="button" class="link-btn danger" (click)="deleteAdmin(a)">Elimina</button>
+                          </span>
+                        }
+                      </li>
+                    }
                   </ul>
                 }
                 <form class="row-form" (ngSubmit)="createAdmin()">

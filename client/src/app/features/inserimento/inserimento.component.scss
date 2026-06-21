@@ -25,6 +25,28 @@
   gap: 1rem;
 }
 
+.tabs {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.tabs button {
+  padding: 0.5rem 1.1rem;
+  border: 0;
+  background: var(--surface);
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tabs button.active {
+  background: var(--accent);
+  color: #fff;
+}
+
 .toggle {
   display: inline-flex;
   border: 1px solid var(--border);

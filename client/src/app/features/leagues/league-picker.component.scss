@@ -3,69 +3,217 @@
 }
 
 .picker {
-  max-width: 640px;
+  max-width: 880px;
   margin: 0 auto;
-  padding: 2.5rem 1.25rem 3rem;
+  padding: 3.5rem 1.25rem 4rem;
+}
+
+/* --- intestazione --- */
+.picker-head {
+  margin-bottom: 2rem;
+}
+
+.eyebrow {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  margin-bottom: 0.9rem;
 }
 
 .picker-head h1 {
-  margin: 0 0 0.25rem;
+  margin: 0 0 0.4rem;
+  font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+  font-size: clamp(2.2rem, 6vw, 3.2rem);
+  font-weight: 600;
+  line-height: 1.02;
+  letter-spacing: -0.01em;
   color: var(--text);
 }
 
 .picker-head p {
-  margin: 0 0 1.5rem;
+  margin: 0;
+  max-width: 38ch;
   color: var(--text-muted);
+  font-size: 1.02rem;
+}
+
+/* --- filtro --- */
+.filter-wrap {
+  position: relative;
+  margin-bottom: 1.75rem;
+}
+
+.filter-icon {
+  position: absolute;
+  left: 0.95rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 2;
+  stroke-linecap: round;
+  pointer-events: none;
 }
 
 .filter {
   width: 100%;
   box-sizing: border-box;
-  padding: 0.7rem 0.9rem;
-  margin-bottom: 1.25rem;
-  border-radius: 8px;
+  padding: 0.8rem 1rem 0.8rem 2.6rem;
+  border-radius: 12px;
   border: 1px solid var(--border);
-  background: var(--surface-2);
+  background: var(--surface);
   color: var(--text);
   font-size: 1rem;
   font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.league-list {
+.filter:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+/* --- griglia carte --- */
+.league-grid {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
 }
 
-.league-list a {
+.card-item {
+  animation: rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+.card {
+  position: relative;
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.9rem 1.1rem;
-  border-radius: 10px;
+  align-items: center;
+  gap: 0.9rem;
+  height: 100%;
+  padding: 1.1rem 1.2rem;
+  border-radius: 16px;
   border: 1px solid var(--border);
   background: var(--surface);
   text-decoration: none;
-  transition: border-color 0.15s, background 0.15s;
+  overflow: hidden;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.league-list a:hover {
+/* alone d'accento che emerge in hover */
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 140% at 0% 0%, var(--accent-soft), transparent 55%);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.card:hover {
+  transform: translateY(-3px);
   border-color: var(--accent);
+  box-shadow: 0 14px 30px -16px rgba(37, 99, 235, 0.45);
+}
+
+.card:hover::before {
+  opacity: 1;
+}
+
+.card > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* logo / avatar */
+.logo {
+  flex: 0 0 auto;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
   background: var(--surface-2);
+  border: 1px solid var(--border);
 }
 
-.league-list .name {
-  font-weight: 600;
+.logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+.avatar {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: var(--avatar, var(--accent));
+}
+
+/* testo */
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.name {
+  font-weight: 650;
+  font-size: 1.05rem;
   color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.league-list .slug {
+.slug {
+  font-size: 0.8rem;
+  font-family: ui-monospace, 'SFMono-Regular', monospace;
   color: var(--text-muted);
-  font-size: 0.85rem;
-  font-family: ui-monospace, monospace;
+}
+
+.go {
+  margin-left: auto;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke 0.18s ease, transform 0.18s ease;
+}
+
+.card:hover .go {
+  stroke: var(--accent);
+  transform: translateX(3px);
 }
 
 .empty {
@@ -74,7 +222,7 @@
 
 .admin-link {
   display: inline-block;
-  margin-top: 1.75rem;
+  margin-top: 2.25rem;
   color: var(--text-muted);
   font-size: 0.85rem;
   text-decoration: none;
@@ -82,4 +230,10 @@
 
 .admin-link:hover {
   color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-item {
+    animation: none;
+  }
 }

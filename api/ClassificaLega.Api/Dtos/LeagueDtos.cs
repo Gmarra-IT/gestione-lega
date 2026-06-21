@@ -12,4 +12,7 @@ public record UpdateLeagueRequest(string? Name, string? Title, bool? IsActive);
 
 public record CreateLeagueAdminRequest(string Username, string Password);
 
+// Modifica admin esistente: campi opzionali (username e/o reset password).
+public record UpdateLeagueAdminRequest(string? Username, string? Password);
+
 public record LeagueAdminDto(int Id, string Username);

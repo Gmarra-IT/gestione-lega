@@ -9,16 +9,52 @@ namespace ClassificaLega.Api.Services;
 
 public class LeagueWriteService(AppDbContext db, LeagueContext league)
 {
-    private async Task<Season> ActiveSeasonAsync()
+    // Stagione su cui operano le scritture: quella richiesta (X-Season-Id, se appartiene alla
+    // lega) oppure, in mancanza, quella attiva. Permette di gestire anche stagioni precedenti.
+    private async Task<Season> CurrentSeasonAsync()
     {
         var leagueId = league.RequireLeagueId();
+        if (league.RequestedSeasonId is int sid)
+        {
+            var requested = await db.Seasons.FirstOrDefaultAsync(s => s.Id == sid && s.LeagueId == leagueId);
+            if (requested is not null) return requested;
+        }
         return await db.Seasons.FirstOrDefaultAsync(s => s.LeagueId == leagueId && s.IsActive)
             ?? throw ApiException.NotFound("Nessuna stagione attiva.");
     }
 
+    public async Task<SeasonDto> CreateSeasonAsync(CreateSeasonRequest req)
+    {
+        var leagueId = league.RequireLeagueId();
+        if (string.IsNullOrWhiteSpace(req.Name))
+            throw ApiException.BadRequest("Nome stagione obbligatorio.");
+        if (req.TotalStages < 1)
+            throw ApiException.BadRequest("TotalStages deve essere >= 1.");
+        if (req.CountingStages < 1 || req.CountingStages > req.TotalStages)
+            throw ApiException.BadRequest("CountingStages deve essere tra 1 e TotalStages.");
+
+        // Archivia le stagioni attive correnti: una sola attiva per lega.
+        var actives = await db.Seasons.Where(s => s.LeagueId == leagueId && s.IsActive).ToListAsync();
+        foreach (var a in actives) a.IsActive = false;
+
+        var season = new Season
+        {
+            LeagueId = leagueId,
+            Name = req.Name.Trim(),
+            TotalStages = req.TotalStages,
+            CountingStages = req.CountingStages,
+            IsActive = true,
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        db.Seasons.Add(season);
+        await db.SaveChangesAsync();
+
+        return new SeasonDto(season.Id, season.Name, season.TotalStages, season.CountingStages, season.IsActive);
+    }
+
     public async Task<SeasonDto> UpdateSeasonAsync(UpdateSeasonRequest req)
     {
-        var season = await ActiveSeasonAsync();
+        var season = await CurrentSeasonAsync();
 
         if (req.TotalStages < 1)
             throw ApiException.BadRequest("TotalStages deve essere >= 1.");
@@ -40,7 +76,7 @@ public class LeagueWriteService(AppDbContext db, LeagueContext league)
 
     public async Task<StageDto> UpsertStageAsync(UpsertStageRequest req)
     {
-        var season = await ActiveSeasonAsync();
+        var season = await CurrentSeasonAsync();
 
         if (req.Number < 1 || req.Number > season.TotalStages)
             throw ApiException.BadRequest($"Number deve essere tra 1 e {season.TotalStages}.");
@@ -75,7 +111,7 @@ public class LeagueWriteService(AppDbContext db, LeagueContext league)
 
     public async Task<StageResultDto> UpsertResultAsync(UpsertResultRequest req)
     {
-        var season = await ActiveSeasonAsync();
+        var season = await CurrentSeasonAsync();
         ValidateMatchPoints(req.MatchPoints);
 
         var stage = await db.Stages
@@ -166,7 +202,7 @@ public class LeagueWriteService(AppDbContext db, LeagueContext league)
 
     private async Task<Result> LoadActiveResultAsync(int resultId)
     {
-        var season = await ActiveSeasonAsync();
+        var season = await CurrentSeasonAsync();
         return await db.Results
             .Include(r => r.Stage)
             .FirstOrDefaultAsync(r => r.Id == resultId && r.Stage.SeasonId == season.Id)

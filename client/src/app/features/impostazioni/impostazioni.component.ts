@@ -1,7 +1,8 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
 import { LeagueContextService } from '../../core/league-context.service';
+import { compressImage } from '../../core/image-compress';
 import { Season } from '../../core/models';
 
 @Component({
@@ -21,6 +22,14 @@ export class ImpostazioniComponent {
   error = signal<string | null>(null);
   ok = signal<string | null>(null);
 
+  // --- nuova stagione ---
+  newSeasonName = signal('');
+  newTotalStages = signal(12);
+  newCountingStages = signal(8);
+  createBusy = signal(false);
+  createError = signal<string | null>(null);
+  createOk = signal<string | null>(null);
+
   // --- logo lega ---
   current = this.ctx.current;
   logoBusy = signal(false);
@@ -31,14 +40,44 @@ export class ImpostazioniComponent {
   });
 
   constructor() {
-    this.api.getSeason().subscribe((s) => {
-      this.season.set(s);
-      this.totalStages.set(s.totalStages);
-      this.countingStages.set(s.countingStages);
+    // Ricarica al primo avvio e a ogni cambio di stagione selezionata.
+    effect(() => {
+      this.ctx.selectedSeasonId();
+      this.api.getSeason().subscribe((s) => {
+        this.season.set(s);
+        this.totalStages.set(s.totalStages);
+        this.countingStages.set(s.countingStages);
+      });
     });
   }
 
-  onLogoSelected(event: Event): void {
+  createSeason(): void {
+    this.createError.set(null);
+    this.createOk.set(null);
+    const name = this.newSeasonName().trim();
+    if (!name) { this.createError.set('Inserisci un nome per la stagione.'); return; }
+    this.createBusy.set(true);
+    this.api.createSeason({
+      name,
+      totalStages: this.newTotalStages(),
+      countingStages: this.newCountingStages(),
+    }).subscribe({
+      next: (s) => {
+        this.createBusy.set(false);
+        this.newSeasonName.set('');
+        this.createOk.set(`Stagione "${s.name}" creata e attivata.`);
+        // Aggiorna l'elenco stagioni e torna alla stagione attiva (la nuova).
+        this.ctx.loadSeasons();
+        this.ctx.setSelectedSeasonId(null);
+      },
+      error: (err) => {
+        this.createError.set(err.error?.error ?? 'Errore nella creazione della stagione.');
+        this.createBusy.set(false);
+      },
+    });
+  }
+
+  async onLogoSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = ''; // permette di riselezionare lo stesso file
@@ -46,7 +85,16 @@ export class ImpostazioniComponent {
 
     this.logoError.set(null);
     this.logoBusy.set(true);
-    this.api.uploadLogo(file).subscribe({
+
+    let upload: File;
+    try {
+      // Ridimensiona/comprime lato client: l'admin può caricare anche foto pesanti.
+      upload = await compressImage(file, { maxSide: 512, quality: 0.85 });
+    } catch {
+      upload = file; // se la compressione fallisce, prova con l'originale
+    }
+
+    this.api.uploadLogo(upload).subscribe({
       next: () => this.afterLogoChange(),
       error: (err) => {
         this.logoError.set(err.error?.error ?? 'Errore nel caricamento del logo.');

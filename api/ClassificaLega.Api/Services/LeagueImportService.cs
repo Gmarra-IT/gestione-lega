@@ -10,16 +10,23 @@ namespace ClassificaLega.Api.Services;
 /// <summary>Import of EventLink "Classifica per posizione" PDFs: stateless preview + reviewed commit.</summary>
 public class LeagueImportService(AppDbContext db, LeagueWriteService write, LeagueContext league)
 {
-    private async Task<Season> ActiveSeasonAsync()
+    // Stagione su cui opera l'import: quella richiesta (X-Season-Id, se appartiene alla lega)
+    // oppure, in mancanza, quella attiva.
+    private async Task<Season> CurrentSeasonAsync()
     {
         var leagueId = league.RequireLeagueId();
+        if (league.RequestedSeasonId is int sid)
+        {
+            var requested = await db.Seasons.FirstOrDefaultAsync(s => s.Id == sid && s.LeagueId == leagueId);
+            if (requested is not null) return requested;
+        }
         return await db.Seasons.FirstOrDefaultAsync(s => s.LeagueId == leagueId && s.IsActive)
             ?? throw ApiException.NotFound("Nessuna stagione attiva.");
     }
 
     public async Task<ImportPreviewResponse> PreviewAsync(Stream pdf)
     {
-        var season = await ActiveSeasonAsync();
+        var season = await CurrentSeasonAsync();
         var parsed = EventLinkPdfParser.Parse(pdf);
         if (parsed.Rows.Count == 0)
             throw ApiException.BadRequest("Nessuna riga riconosciuta nel PDF.");
@@ -56,7 +63,7 @@ public class LeagueImportService(AppDbContext db, LeagueWriteService write, Leag
 
     public async Task<ImportCommitResponse> CommitAsync(ImportCommitRequest req)
     {
-        var season = await ActiveSeasonAsync();
+        var season = await CurrentSeasonAsync();
 
         if (req.StageNumber < 1 || req.StageNumber > season.TotalStages)
             throw ApiException.BadRequest($"Numero tappa deve essere tra 1 e {season.TotalStages}.");

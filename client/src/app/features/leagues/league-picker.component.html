@@ -1,26 +1,46 @@
 <div class="picker">
   <header class="picker-head">
+    <span class="eyebrow">Magic · Pauper</span>
     <h1>Lega Pauper</h1>
     <p>Scegli una lega per vedere classifica, tappe e statistiche.</p>
   </header>
 
-  <input
-    class="filter"
-    type="search"
-    placeholder="Filtra leghe…"
-    [ngModel]="filter()"
-    (ngModelChange)="filter.set($event)"
-  />
+  <div class="filter-wrap">
+    <svg class="filter-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="11" cy="11" r="7" />
+      <line x1="21" y1="21" x2="16.5" y2="16.5" />
+    </svg>
+    <input
+      class="filter"
+      type="search"
+      placeholder="Filtra leghe…"
+      [ngModel]="filter()"
+      (ngModelChange)="filter.set($event)"
+    />
+  </div>
 
   @if (filtered().length === 0) {
     <p class="empty">Nessuna lega trovata.</p>
   } @else {
-    <ul class="league-list">
-      @for (l of filtered(); track l.slug) {
-        <li>
-          <a [routerLink]="['/', l.slug, 'classifica']">
-            <span class="name">{{ l.title ?? l.name }}</span>
-            <span class="slug">/{{ l.slug }}</span>
+    <ul class="league-grid">
+      @for (l of filtered(); track l.slug; let i = $index) {
+        <li class="card-item" [style.animation-delay.ms]="i * 55">
+          <a class="card" [routerLink]="['/', l.slug, 'classifica']">
+            <span class="logo">
+              @if (logoSrc(l); as src) {
+                <img [src]="src" [alt]="l.name" loading="lazy" />
+              } @else {
+                <span class="avatar" [style.--avatar]="avatarColor(l)">{{ initials(l) }}</span>
+              }
+            </span>
+            <span class="meta">
+              <span class="name">{{ l.title ?? l.name }}</span>
+              <span class="slug">/{{ l.slug }}</span>
+            </span>
+            <svg class="go" viewBox="0 0 24 24" aria-hidden="true">
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="13 6 19 12 13 18" />
+            </svg>
           </a>
         </li>
       }

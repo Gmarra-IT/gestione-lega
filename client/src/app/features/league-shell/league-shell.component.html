@@ -11,20 +11,24 @@
     <span class="brand-name">{{ brand() }}</span>
   </a>
 
-  @if (leagues().length > 1) {
-    <select class="league-select" (change)="switchTo($any($event.target).value)" aria-label="Cambia lega">
-      @for (l of leagues(); track l.slug) {
-        <option [value]="l.slug" [selected]="l.slug === slug()">{{ l.title ?? l.name }}</option>
-      }
-    </select>
-  }
-
   <!-- Navigazione desktop -->
   <nav class="nav-desktop">
     <ng-container [ngTemplateOutlet]="navLinks" />
   </nav>
 
   <div class="spacer"></div>
+
+  <!-- Selettore stagione (visibile a tutti se c'è più di una stagione) -->
+  @if (seasons().length > 1) {
+    <select class="season-select" aria-label="Stagione"
+            (change)="onSeasonChange($event)">
+      @for (s of seasons(); track s.id) {
+        <option [value]="s.id" [selected]="s.id === currentSeasonId()">
+          {{ s.name }}{{ s.isActive ? ' • attiva' : '' }}
+        </option>
+      }
+    </select>
+  }
 
   <!-- Hamburger (mobile) -->
   <button
@@ -49,11 +53,13 @@
 
 <!-- Link condivisi tra nav desktop e drawer -->
 <ng-template #navLinks>
+  @if (leagues().length > 1) {
+    <a routerLink="/" (click)="closeMenu()">Cambia lega</a>
+  }
   <a [routerLink]="['/', slug(), 'classifica']" routerLinkActive="active" (click)="closeMenu()">Classifica</a>
   <a [routerLink]="['/', slug(), 'tappe']" routerLinkActive="active" (click)="closeMenu()">Tappe</a>
   @if (isAdmin()) {
     <a [routerLink]="['/', slug(), 'inserimento']" routerLinkActive="active" (click)="closeMenu()">Inserimento</a>
-    <a [routerLink]="['/', slug(), 'importazione']" routerLinkActive="active" (click)="closeMenu()">Import PDF</a>
     <a [routerLink]="['/', slug(), 'impostazioni']" routerLinkActive="active" (click)="closeMenu()">Impostazioni</a>
   }
   @if (isSuperAdmin()) {

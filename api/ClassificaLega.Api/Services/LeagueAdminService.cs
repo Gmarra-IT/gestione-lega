@@ -49,7 +49,9 @@ public partial class LeagueAdminService(AppDbContext db)
         ["image/webp"] = "webp",
         ["image/svg+xml"] = "svg",
     };
-    private const int MaxLogoBytes = 512 * 1024;
+    // Backstop: il client comprime/ridimensiona prima dell'upload, ma teniamo un
+    // limite lato server (i byte vivono nel DB) per quando la compressione fallisce.
+    private const int MaxLogoBytes = 1024 * 1024;
 
     // Carica/sostituisce il logo della lega. Valida tipo e dimensione.
     public async Task SetLogoAsync(int leagueId, Stream content, string? contentType)
@@ -65,7 +67,7 @@ public partial class LeagueAdminService(AppDbContext db)
         if (ms.Length == 0)
             throw ApiException.BadRequest("File vuoto.");
         if (ms.Length > MaxLogoBytes)
-            throw ApiException.BadRequest("Immagine troppo grande (max 512 KB).");
+            throw ApiException.BadRequest("Immagine troppo grande (max 1 MB).");
 
         var bytes = ms.ToArray();
         var etag = Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(bytes))
@@ -174,6 +176,39 @@ public partial class LeagueAdminService(AppDbContext db)
         db.Users.Add(user);
         await db.SaveChangesAsync();
         return new LeagueAdminDto(user.Id, user.Username);
+    }
+
+    public async Task<LeagueAdminDto> UpdateLeagueAdminAsync(int leagueId, int userId, UpdateLeagueAdminRequest req)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId && u.LeagueId == leagueId)
+            ?? throw ApiException.NotFound($"Admin {userId} inesistente per questa lega.");
+
+        if (req.Username is not null)
+        {
+            var username = req.Username.Trim();
+            if (string.IsNullOrWhiteSpace(username))
+                throw ApiException.BadRequest("Username non può essere vuoto.");
+            if (await db.Users.AnyAsync(u => u.LeagueId == leagueId && u.Id != userId && u.Username == username))
+                throw ApiException.Conflict($"Admin '{username}' già presente per questa lega.");
+            user.Username = username;
+        }
+        if (req.Password is not null)
+        {
+            if (req.Password.Length < 6)
+                throw ApiException.BadRequest("Password troppo corta (min 6 caratteri).");
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password);
+        }
+
+        await db.SaveChangesAsync();
+        return new LeagueAdminDto(user.Id, user.Username);
+    }
+
+    public async Task DeleteLeagueAdminAsync(int leagueId, int userId)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId && u.LeagueId == leagueId)
+            ?? throw ApiException.NotFound($"Admin {userId} inesistente per questa lega.");
+        db.Users.Remove(user);
+        await db.SaveChangesAsync();
     }
 
     public async Task<IReadOnlyList<LeagueAdminDto>> GetLeagueAdminsAsync(int leagueId) =>

@@ -69,7 +69,8 @@ Base `/api`. Lettura **pubblica**, scrittura **protetta** (JWT). Lega risolta da
 - Admin lega (`RequireAuthorization` + filtro: super-admin passa sempre, altrimenti claim `leagueId`
   del token deve == lega del contesto, sennò 403): `PUT /season`, `POST /stages`,
   `POST|PUT|DELETE /results`, `POST /import/pdf` (preview), `POST /import/commit`,
-  `POST|DELETE /logo` (logo lega corrente; valida PNG/JPEG/WebP/SVG, max 512 KB).
+  `POST|DELETE /logo` (logo lega corrente; valida PNG/JPEG/WebP/SVG, max 1 MB
+  backstop — il client comprime/ridimensiona prima dell'upload, vedi `core/image-compress.ts`).
 - Super-admin (`/leagues`, filtro `Role==SuperAdmin`): `GET /leagues/all`, `POST /leagues`,
   `PUT /leagues/{id}`, `GET /leagues/{id}/admins`, `POST /leagues/{id}/admins`,
   `POST|DELETE /leagues/{id}/logo` (logo di una lega qualsiasi).
@@ -102,7 +103,9 @@ npm test                                   # karma/jasmine
 - **Routing client**: `''` = picker leghe; `gestione` = console super-admin (slug riservato,
   `RESERVED_SLUGS`); `:slug` = `league-shell` (children classifica/tappe/inserimento/importazione/
   impostazioni/login). `league.interceptor` deriva slug da 1° segmento URL → header `X-League-Slug`.
-  `auth.service` salva token per scope (slug o `__super`).
+  `auth.service` salva token per scope (slug o `__super`). Login **super-admin** replica il token
+  anche sotto `__super` (globale): `isSuperAdmin()` legge solo `__super`, e `token()`/`isAdminForScope()`
+  fanno fallback su `__super` → super-admin vale su qualsiasi lega senza re-login.
 - **Testata `league-shell`**: brand-block = logo app (`app-logo.svg`) + logo lega (`<img>` se
   `current().hasLogo`, sennò avatar iniziali con colore derivato dallo slug) + nome. Nav con
   **hamburger drawer** sotto 768px. Link **"Gestione leghe"** → `/gestione` visibile solo se
