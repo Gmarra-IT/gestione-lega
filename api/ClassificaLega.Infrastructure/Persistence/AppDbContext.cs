@@ -6,6 +6,7 @@ namespace ClassificaLega.Infrastructure.Persistence;
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     public DbSet<League> Leagues => Set<League>();
+    public DbSet<LeagueLogo> LeagueLogos => Set<LeagueLogo>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Season> Seasons => Set<Season>();
     public DbSet<Player> Players => Set<Player>();
@@ -22,6 +23,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Title).HasMaxLength(200);
             e.HasIndex(x => x.Slug).IsUnique();
             e.HasMany(x => x.Seasons).WithOne(x => x.League).HasForeignKey(x => x.LeagueId);
+        });
+
+        model.Entity<LeagueLogo>(e =>
+        {
+            // PK = LeagueId: relazione 1-1, una riga per lega. Cascade alla cancellazione lega.
+            e.HasKey(x => x.LeagueId);
+            e.Property(x => x.Bytes).IsRequired();
+            e.Property(x => x.ContentType).IsRequired().HasMaxLength(100);
+            e.Property(x => x.ETag).IsRequired().HasMaxLength(100);
+            e.HasOne(x => x.League).WithOne()
+                .HasForeignKey<LeagueLogo>(x => x.LeagueId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         model.Entity<User>(e =>

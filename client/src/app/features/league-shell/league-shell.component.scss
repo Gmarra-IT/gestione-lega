@@ -5,22 +5,63 @@
 .topbar {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
+  gap: 0.5rem 1rem;
   padding: 0.5rem 1.25rem;
   min-height: 56px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 20;
 }
 
+/* --- brand block: logo app + logo/avatar lega + nome --- */
 .brand {
-  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
   color: var(--text);
   white-space: nowrap;
-  text-decoration: none;
+}
+
+.app-mark {
+  display: block;
+  border-radius: 8px;
+  flex: none;
+}
+
+.league-badge {
+  display: flex;
+  align-items: center;
+}
+
+.league-logo,
+.avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  flex: none;
+}
+
+.league-logo {
+  object-fit: cover;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.brand-name {
+  font-weight: 700;
+  font-size: 1rem;
 }
 
 .league-select {
@@ -32,58 +73,129 @@
   font-size: 0.85rem;
   font-family: inherit;
   cursor: pointer;
-}
-
-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-}
-
-nav a,
-.link-btn {
-  padding: 0.4rem 0.7rem;
-  border-radius: 6px;
-  color: var(--text-muted);
-  text-decoration: none;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-nav a:hover,
-.link-btn:hover {
-  background: var(--surface-2);
-  color: var(--text);
-}
-
-nav a.active {
-  background: var(--accent-soft);
-  color: var(--accent);
+  width: auto;
 }
 
 .spacer {
   flex: 1;
 }
 
-.topbar > a:not(.brand) {
+/* --- nav links (condivisi desktop/drawer) --- */
+.nav-desktop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.nav-desktop a,
+.nav-desktop .link-btn,
+.drawer a,
+.drawer .link-btn {
   padding: 0.4rem 0.7rem;
   border-radius: 6px;
   color: var(--text-muted);
   text-decoration: none;
   font-size: 0.9rem;
   font-weight: 500;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
 }
 
-.topbar > a:not(.brand):hover {
+.nav-desktop a:hover,
+.nav-desktop .link-btn:hover,
+.drawer a:hover,
+.drawer .link-btn:hover {
   background: var(--surface-2);
   color: var(--text);
 }
 
-.link-btn {
-  border: 0;
-  background: transparent;
+.nav-desktop a.active,
+.drawer a.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* "Gestione leghe": accento super-admin */
+.nav-desktop a.super,
+.drawer a.super {
+  color: var(--accent);
+}
+
+/* --- hamburger (solo mobile) --- */
+.hamburger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 40px;
+  height: 40px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
   cursor: pointer;
-  font-family: inherit;
+}
+
+.hamburger span {
+  display: block;
+  height: 2px;
+  width: 100%;
+  background: var(--text);
+  border-radius: 2px;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.hamburger.open span:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+.hamburger.open span:nth-child(2) {
+  opacity: 0;
+}
+.hamburger.open span:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* --- drawer mobile --- */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 20, 28, 0.4);
+  z-index: 18;
+  animation: fade 0.15s ease;
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(78vw, 280px);
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: -12px 0 32px rgba(15, 20, 28, 0.18);
+  z-index: 19;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 4.25rem 0.85rem 1.25rem;
+  animation: slide 0.2s ease;
+}
+
+.drawer a,
+.drawer .link-btn {
+  text-align: left;
+  font-size: 1rem;
+  padding: 0.7rem 0.8rem;
+}
+
+@keyframes fade {
+  from { opacity: 0; }
+}
+@keyframes slide {
+  from { transform: translateX(100%); }
 }
 
 .content {
@@ -92,22 +204,31 @@ nav a.active {
   margin: 0 auto;
 }
 
-@media (max-width: 560px) {
+/* --- responsive: sotto 768px → hamburger + drawer --- */
+@media (max-width: 768px) {
   .topbar {
-    gap: 0.4rem 0.75rem;
-    padding: 0.5rem 0.75rem;
+    padding: 0.5rem 0.9rem;
+    gap: 0.5rem;
   }
-
-  .spacer {
+  .nav-desktop {
     display: none;
   }
-
-  nav {
-    order: 3;
-    width: 100%;
+  .hamburger {
+    display: flex;
   }
-
+  .league-select {
+    max-width: 9rem;
+  }
   .content {
     padding: 1rem 0.85rem 2.5rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .brand-name {
+    display: none;
+  }
+  .league-select {
+    max-width: 7rem;
   }
 }

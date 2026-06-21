@@ -13,7 +13,7 @@ function slugOf(route: ActivatedRouteSnapshot): string | null {
 export const adminGuard: CanActivateFn = (route, state) => {
   const auth = inject(AuthService);
   const router = inject(Router);
-  if (auth.isAdmin()) return true;
   const slug = slugOf(route);
+  if (auth.isAdminForScope(slug)) return true;
   return router.createUrlTree(['/', slug, 'login'], { queryParams: { redirect: state.url } });
 };

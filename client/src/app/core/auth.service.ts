@@ -27,6 +27,13 @@ export class AuthService {
   isAdmin = computed(() => this.token() !== null);
   isSuperAdmin = computed(() => decodeRole(this.token()) === 'SuperAdmin');
 
+  // Esiste un token valido per lo scope di questo slug? (slug null => scope super-admin)
+  // Esplicito: usato dai guard su caricamento diretto/refresh, quando LeagueContext non e' ancora popolato.
+  isAdminForScope(slug: string | null): boolean {
+    this.version();
+    return this.readValidToken(slug ?? SUPER_SCOPE) !== null;
+  }
+
   login(req: LoginRequest): Observable<unknown> {
     const scope = this.scope();
     return this.api.login(req).pipe(

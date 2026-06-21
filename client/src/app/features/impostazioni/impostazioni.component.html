@@ -27,3 +27,29 @@
 } @else {
   <p class="muted">Caricamento…</p>
 }
+
+<h2 class="logo-title">Logo della lega</h2>
+<div class="card logo-card">
+  <div class="logo-preview">
+    @if (logoSrc(); as src) {
+      <img [src]="src" [alt]="current()?.name ?? 'Logo lega'" />
+    } @else {
+      <span class="logo-empty">Nessun logo</span>
+    }
+  </div>
+
+  <div class="logo-actions">
+    <p class="hint">PNG, JPEG, WebP o SVG · max 512 KB. Mostrato nella testata.</p>
+    <div class="logo-buttons">
+      <label class="btn" [class.disabled]="logoBusy()">
+        {{ logoBusy() ? 'Attendi…' : (logoSrc() ? 'Sostituisci' : 'Carica logo') }}
+        <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"
+               (change)="onLogoSelected($event)" [disabled]="logoBusy()" hidden />
+      </label>
+      @if (logoSrc()) {
+        <button type="button" class="btn ghost" (click)="removeLogo()" [disabled]="logoBusy()">Rimuovi</button>
+      }
+    </div>
+    @if (logoError()) { <div class="msg error">{{ logoError() }}</div> }
+  </div>
+</div>

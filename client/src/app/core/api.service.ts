@@ -40,6 +40,31 @@ export class ApiService {
     return this.http.post<LeagueAdmin>(`${this.base}/leagues/${id}/admins`, req);
   }
 
+  // --- logo lega ---
+  // URL pubblico del logo (slug nel path). `v` per cache-busting dopo un upload.
+  logoUrl(slug: string, v?: string | number): string {
+    const q = v != null ? `?v=${v}` : '';
+    return `${this.base}/leagues/${slug}/logo${q}`;
+  }
+  // Carica/sostituisce il logo della lega corrente (admin di lega o super-admin).
+  uploadLogo(file: File): Observable<void> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<void>(`${this.base}/logo`, form);
+  }
+  deleteLogo(): Observable<void> {
+    return this.http.delete<void>(`${this.base}/logo`);
+  }
+  // Varianti super-admin: gestiscono il logo di una lega qualsiasi per id.
+  uploadLeagueLogo(id: number, file: File): Observable<void> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<void>(`${this.base}/leagues/${id}/logo`, form);
+  }
+  deleteLeagueLogo(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/leagues/${id}/logo`);
+  }
+
   // --- read (public) ---
   getSeason(): Observable<Season> {
     return this.http.get<Season>(`${this.base}/season`);

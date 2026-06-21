@@ -6,6 +6,7 @@ export interface League {
   name: string;
   title: string | null;
   isActive: boolean;
+  hasLogo: boolean;
 }
 
 export interface CreateLeagueRequest {

@@ -17,15 +17,80 @@ public partial class LeagueAdminService(AppDbContext db)
         await db.Leagues.AsNoTracking()
             .Where(l => l.IsActive)
             .OrderBy(l => l.Name)
-            .Select(l => new LeagueDto(l.Id, l.Slug, l.Name, l.Title, l.IsActive))
+            .Select(l => new LeagueDto(l.Id, l.Slug, l.Name, l.Title, l.IsActive,
+                db.LeagueLogos.Any(x => x.LeagueId == l.Id)))
             .ToListAsync();
 
     // Elenco completo (super-admin): incluse leghe disattivate.
     public async Task<IReadOnlyList<LeagueDto>> GetAllLeaguesAsync() =>
         await db.Leagues.AsNoTracking()
             .OrderBy(l => l.Name)
-            .Select(l => new LeagueDto(l.Id, l.Slug, l.Name, l.Title, l.IsActive))
+            .Select(l => new LeagueDto(l.Id, l.Slug, l.Name, l.Title, l.IsActive,
+                db.LeagueLogos.Any(x => x.LeagueId == l.Id)))
             .ToListAsync();
+
+    // --- logo ---
+
+    // Byte del logo (endpoint pubblico). null se la lega non ha logo.
+    public async Task<LeagueLogoData?> GetLogoAsync(string slug)
+    {
+        var logo = await db.LeagueLogos.AsNoTracking()
+            .Where(x => x.League.Slug == slug)
+            .Select(x => new LeagueLogoData(x.Bytes, x.ContentType, x.ETag))
+            .FirstOrDefaultAsync();
+        return logo;
+    }
+
+    // Tipi immagine ammessi per il logo.
+    private static readonly Dictionary<string, string> AllowedLogoTypes = new()
+    {
+        ["image/png"] = "png",
+        ["image/jpeg"] = "jpeg",
+        ["image/webp"] = "webp",
+        ["image/svg+xml"] = "svg",
+    };
+    private const int MaxLogoBytes = 512 * 1024;
+
+    // Carica/sostituisce il logo della lega. Valida tipo e dimensione.
+    public async Task SetLogoAsync(int leagueId, Stream content, string? contentType)
+    {
+        var type = (contentType ?? string.Empty).Split(';')[0].Trim().ToLowerInvariant();
+        if (!AllowedLogoTypes.ContainsKey(type))
+            throw ApiException.BadRequest("Formato non valido. Ammessi: PNG, JPEG, WebP, SVG.");
+        if (!await db.Leagues.AnyAsync(l => l.Id == leagueId))
+            throw ApiException.NotFound($"Lega {leagueId} inesistente.");
+
+        using var ms = new MemoryStream();
+        await content.CopyToAsync(ms);
+        if (ms.Length == 0)
+            throw ApiException.BadRequest("File vuoto.");
+        if (ms.Length > MaxLogoBytes)
+            throw ApiException.BadRequest("Immagine troppo grande (max 512 KB).");
+
+        var bytes = ms.ToArray();
+        var etag = Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(bytes))
+            .Replace('+', '-').Replace('/', '_').TrimEnd('=');
+
+        var logo = await db.LeagueLogos.FirstOrDefaultAsync(x => x.LeagueId == leagueId);
+        if (logo is null)
+        {
+            logo = new LeagueLogo { LeagueId = leagueId };
+            db.LeagueLogos.Add(logo);
+        }
+        logo.Bytes = bytes;
+        logo.ContentType = type;
+        logo.ETag = etag;
+        logo.UpdatedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync();
+    }
+
+    public async Task DeleteLogoAsync(int leagueId)
+    {
+        var logo = await db.LeagueLogos.FirstOrDefaultAsync(x => x.LeagueId == leagueId);
+        if (logo is null) return;
+        db.LeagueLogos.Remove(logo);
+        await db.SaveChangesAsync();
+    }
 
     public async Task<LeagueDto> CreateLeagueAsync(CreateLeagueRequest req)
     {
@@ -60,7 +125,8 @@ public partial class LeagueAdminService(AppDbContext db)
         });
         await db.SaveChangesAsync();
 
-        return new LeagueDto(league.Id, league.Slug, league.Name, league.Title, league.IsActive);
+        // Lega appena creata: nessun logo.
+        return new LeagueDto(league.Id, league.Slug, league.Name, league.Title, league.IsActive, false);
     }
 
     public async Task<LeagueDto> UpdateLeagueAsync(int id, UpdateLeagueRequest req)
@@ -80,7 +146,8 @@ public partial class LeagueAdminService(AppDbContext db)
             league.IsActive = active;
 
         await db.SaveChangesAsync();
-        return new LeagueDto(league.Id, league.Slug, league.Name, league.Title, league.IsActive);
+        var hasLogo = await db.LeagueLogos.AnyAsync(x => x.LeagueId == league.Id);
+        return new LeagueDto(league.Id, league.Slug, league.Name, league.Title, league.IsActive, hasLogo);
     }
 
     public async Task<LeagueAdminDto> CreateLeagueAdminAsync(int leagueId, CreateLeagueAdminRequest req)

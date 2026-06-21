@@ -15,7 +15,8 @@
             "preLaunchTask": "build-api",
             "postDebugTask": "stop-all-servers",
             "env": {
-                "ASPNETCORE_ENVIRONMENT": "Development"
+                "ASPNETCORE_ENVIRONMENT": "Development",
+                "ASPNETCORE_URLS": "http://localhost:5188"
             }
         },
         {
@@ -44,6 +45,7 @@
     "compounds": [
         {
             "name": "API + Client",
+            "stopAll": true,
             "configurations": [
                 "API (Avvia)",
                 "Client (Chrome)"

@@ -17,6 +17,13 @@ export class LeagueContextService {
   private _leagues = signal<League[]>([]);
   leagues = this._leagues.asReadonly();
 
+  // Bumpato dopo un upload/rimozione logo per forzare il refresh degli <img>.
+  private _logoVersion = signal(0);
+  logoVersion = this._logoVersion.asReadonly();
+  bumpLogoVersion(): void {
+    this._logoVersion.update((v) => v + 1);
+  }
+
   // Lega corrente risolta dall'elenco.
   current = computed(() => this._leagues().find((l) => l.slug === this._slug()) ?? null);
 

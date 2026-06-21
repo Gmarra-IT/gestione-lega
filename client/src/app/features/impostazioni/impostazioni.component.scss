@@ -14,3 +14,88 @@
   font-size: 0.8rem;
   color: var(--text-muted);
 }
+
+.logo-title {
+  margin-top: 2rem;
+}
+
+.logo-card {
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.logo-preview {
+  width: 72px;
+  height: 72px;
+  flex: none;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.logo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.logo-empty {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.logo-actions {
+  flex: 1;
+  min-width: 0;
+}
+
+.logo-actions .hint {
+  margin: 0 0 0.6rem;
+}
+
+.logo-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* <label class="btn"> usato come bottone per l'input file nascosto.
+   Il selettore globale è `button.btn`, quindi qui replico lo stile per il label. */
+label.btn {
+  display: inline-flex;
+  align-items: center;
+  width: auto;
+  margin: 0;
+  padding: 0.55rem 1rem;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+label.btn:hover {
+  background: var(--accent-hover);
+}
+
+label.btn.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.btn.ghost {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--border);
+}
+
+.btn.ghost:hover {
+  background: var(--danger-soft);
+}

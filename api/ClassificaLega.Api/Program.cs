@@ -108,6 +108,21 @@ api.MapPost("/auth/login", async (LoginRequest req, AuthService auth) =>
 api.MapGet("/leagues", async (LeagueAdminService svc) =>
     Results.Ok(await svc.GetActiveLeaguesAsync()));
 
+// Logo lega (pubblico, slug nel path → niente header). Cache-friendly con ETag.
+api.MapGet("/leagues/{slug}/logo", async (string slug, LeagueAdminService svc, HttpContext http) =>
+{
+    var logo = await svc.GetLogoAsync(slug);
+    if (logo is null) return Results.NotFound();
+
+    var etag = $"\"{logo.ETag}\"";
+    if (http.Request.Headers.IfNoneMatch == etag)
+        return Results.StatusCode(StatusCodes.Status304NotModified);
+
+    http.Response.Headers.ETag = etag;
+    http.Response.Headers.CacheControl = "public, max-age=86400";
+    return Results.File(logo.Bytes, logo.ContentType);
+});
+
 // --- read (public) ---
 api.MapGet("/season", async (LeagueReadService svc) =>
     await svc.GetSeasonAsync() is { } s ? Results.Ok(s) : Results.NotFound());
@@ -174,6 +189,20 @@ admin.MapPost("/import/pdf", async (IFormFile file, LeagueImportService svc) =>
 admin.MapPost("/import/commit", async (ImportCommitRequest req, LeagueImportService svc) =>
     Results.Ok(await svc.CommitAsync(req)));
 
+// Logo della lega corrente (admin di lega o super-admin).
+admin.MapPost("/logo", async (IFormFile file, LeagueAdminService svc, LeagueContext ctx) =>
+{
+    await using var stream = file.OpenReadStream();
+    await svc.SetLogoAsync(ctx.RequireLeagueId(), stream, file.ContentType);
+    return Results.NoContent();
+}).DisableAntiforgery();
+
+admin.MapDelete("/logo", async (LeagueAdminService svc, LeagueContext ctx) =>
+{
+    await svc.DeleteLogoAsync(ctx.RequireLeagueId());
+    return Results.NoContent();
+});
+
 // --- gestione leghe (solo super-admin) ---
 var superAdmin = api.MapGroup("/leagues").RequireAuthorization().AddEndpointFilter(async (ctx, next) =>
 {
@@ -193,6 +222,19 @@ superAdmin.MapPut("/{id:int}", async (int id, UpdateLeagueRequest req, LeagueAdm
 
 superAdmin.MapGet("/{id:int}/admins", async (int id, LeagueAdminService svc) =>
     Results.Ok(await svc.GetLeagueAdminsAsync(id)));
+
+superAdmin.MapPost("/{id:int}/logo", async (int id, IFormFile file, LeagueAdminService svc) =>
+{
+    await using var stream = file.OpenReadStream();
+    await svc.SetLogoAsync(id, stream, file.ContentType);
+    return Results.NoContent();
+}).DisableAntiforgery();
+
+superAdmin.MapDelete("/{id:int}/logo", async (int id, LeagueAdminService svc) =>
+{
+    await svc.DeleteLogoAsync(id);
+    return Results.NoContent();
+});
 
 superAdmin.MapPost("/{id:int}/admins", async (int id, CreateLeagueAdminRequest req, LeagueAdminService svc) =>
     Results.Ok(await svc.CreateLeagueAdminAsync(id, req)));

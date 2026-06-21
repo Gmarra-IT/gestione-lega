@@ -10,3 +10,14 @@ Stile dark
 
 
 
+Logo (per card selector e contestualizzazione). Da configurare in pagina impostazioni lega (o agli admin specifici?)
+
+
+Gestione season, visualizzazione season passate.
+
+
+Gestione persone - dati aggiuntivi, legame con leghe..
+
+
+Gestione token super admin (evitare che il cambio lega faccia ripassare dal login). 
+Gestione menu superadmin

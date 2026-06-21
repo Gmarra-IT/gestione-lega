@@ -1,69 +1,85 @@
 # CLAUDE.md
 
-Guida per lavorare in questo repo. Tool web per gestire la classifica di una lega Pauper
-(Magic), sostituto del workbook Excel. Prima installazione: **Lega Pauper Massarosa 2026**
-(`lega-pauper-massarosa.gmarra.it`).
+Tool web gestione classifica leghe Pauper (Magic), sostituto Excel. **Multi-lega (multi-tenant)**.
+Lega seed: **Massarosa 2026** (slug `massarosa`). Base path deploy: `gmarra.it/lega-pauper/`,
+lega sotto `/:slug` (es. `/lega-pauper/massarosa/`).
 
 ## Stack
 
-- **API**: .NET 10, ASP.NET Core Minimal API. Clean architecture (Domain / Infrastructure / Api).
-- **DB**: PostgreSQL via EF Core (Npgsql). Migration + seed automatici all'avvio.
-- **Client**: Angular 19 (standalone components, lazy routes, interceptor JWT).
-- **Deploy**: Docker su VM ARM64; immagini su GHCR; nginx host termina HTTPS → container client;
-  GitHub Actions builda e deploya su push a `main`. Dettagli in `docs/deploy.md`.
+- **API**: .NET 10, ASP.NET Core Minimal API. Clean arch (Domain / Infrastructure / Api).
+- **DB**: PostgreSQL via EF Core (Npgsql). Migration + seed auto all'avvio.
+- **Client**: Angular 19 (standalone, lazy routes, interceptor JWT + slug).
+- **Deploy**: Docker VM ARM64; immagini GHCR; nginx host termina HTTPS → container client;
+  GitHub Actions builda+deploya su push `main`. Dettagli `docs/deploy.md`.
 
 ## Struttura
 
-​```
+```
 api/
-  ClassificaLega.Domain/          # entità + ScoringService (logica pura, testabile)
-    Entities/                     # Season, Player, Stage, Result
-    Services/ScoringService.cs    # bonus + classifica "Best N tappe"
+  ClassificaLega.Domain/
+    Entities/                     # League, LeagueLogo, Season, Player, Stage, Result, User+UserRoles
+    Services/ScoringService.cs    # bonus + classifica "Best N tappe" (logica pura)
   ClassificaLega.Infrastructure/
     Persistence/AppDbContext.cs   # DbSet + mapping EF
-    Persistence/DatabaseSeeder.cs # seed iniziale (dati Massarosa 2026)
-    Persistence/Migrations/
+    Persistence/DatabaseSeeder.cs # seed Massarosa (SeedLeagueSlug) + EnsureUsersAsync
+    Persistence/Migrations/       # ..._MultiLeague aggiunge League/User + backfill
     PdfImport/EventLinkPdfParser.cs  # parsing PDF EventLink (PdfPig)
   ClassificaLega.Api/
-    Program.cs                    # DI, auth JWT, CORS, endpoint Minimal API
+    Program.cs                    # DI, JWT, CORS, middleware slug, endpoint Minimal API
+    Tenancy/LeagueContext.cs      # lega corrente (scoped), RequireLeagueId()
     Auth/                         # JwtOptions, AdminOptions, AuthService
-    Services/                     # LeagueReadService, LeagueWriteService, LeagueImportService
-    Dtos/                         # ReadDtos, WriteDtos, ImportDtos
-  ClassificaLega.Tests/           # xUnit, focus sul dominio (ScoringService, parser)
+    Services/                     # LeagueRead/Write/Import + LeagueAdminService
+    Dtos/                         # ReadDtos, WriteDtos, ImportDtos, LeagueDtos
+  ClassificaLega.Tests/           # xUnit, focus dominio (ScoringService, parser)
 client/
-  src/app/core/                   # api.service, auth.service, interceptor, guard, models, scoring
-  src/app/features/               # classifica, tappe, inserimento, importazione, impostazioni, login
+  src/app/core/                   # api, auth, interceptor, league.interceptor,
+                                  #   league-context.service, league-reuse.strategy, guard, models
+  src/app/features/               # leagues(picker), admin(super-admin), league-shell,
+                                  #   classifica, tappe, inserimento, importazione, impostazioni, login
+  public/app-logo.svg             # logo app (mark fisso in testata)
   nginx.conf                      # proxy /api/ → http://api:8080 (rete compose)
-​```
+```
 
 ## Modello dominio
 
-Gerarchia: **Season → (Players, Stages) → Results**. `Result` = (Stage × Player) con punteggi.
+Gerarchia: **League → Seasons → (Players, Stages) → Results**. `Result` = (Stage × Player) punteggi.
 
-- Tutto è **single-tenant**: la lettura/scrittura pivota sull'**unica Season con `IsActive = true`**
-  (`LeagueReadService.ActiveSeasonAsync`, `LeagueWriteService.ActiveSeasonAsync`). Non esiste
-  ancora un concetto di "lega"/tenant sopra Season.
+- **League** = tenant. `Slug` (url, lowercase), `Name`, `Title?` (branding), `IsActive`.
+- **LeagueLogo** = logo lega, blob su DB. **Tabella separata** (PK=`LeagueId`, 1-1, cascade) così i
+  byte non si caricano mai nelle query su League (il middleware tenant carica `Leagues` ad ogni
+  richiesta). Campi: `Bytes` (bytea), `ContentType`, `ETag` (hash), `UpdatedAt`. `LeagueDto.HasLogo`
+  espone la presenza senza scaricare i byte.
+- **Season** ha `LeagueId`. Una sola attiva per lega (`IsActive`).
+- **User**: `Role` = `SuperAdmin` (globale, `LeagueId=null`) o `LeagueAdmin` (legato a `LeagueId`).
+  `PasswordHash` BCrypt. Vedi `UserRoles`.
+- **Tenancy**: middleware legge header `X-League-Slug` → risolve lega attiva → `LeagueContext.Current`
+  (scoped). Read/Write/Import services pivotano su `RequireLeagueId()` + Season attiva di quella lega.
 - **Scoring** (`ScoringService`): `TotalPoints = MatchPoints + BonusRisultato + BonusPartecipazione`.
-  Il bonus partecipazione dipende dalla storia ordinata delle tappe del giocatore, quindi ogni
-  modifica a un risultato richiama `RecomputePlayerAsync`.
-- **Classifica**: "Best N tappe" — somma le migliori `CountingStages` tappe (default 8 su
-  `TotalStages` = 12).
+  Bonus partecipazione dipende da storia ordinata tappe giocatore → ogni modifica risultato
+  richiama `RecomputePlayerAsync`.
+- **Classifica**: "Best N tappe" — somma migliori `CountingStages` (default 8) su `TotalStages` (12).
 
 ## API (endpoint)
 
-Base `/api`. Lettura **pubblica**, scrittura **protetta** (JWT, ruolo admin).
+Base `/api`. Lettura **pubblica**, scrittura **protetta** (JWT). Lega risolta da header `X-League-Slug`.
 
-- Public: `GET /season`, `/standings`, `/stages`, `/stages/{n}/results`,
+- Public: `GET /leagues` (leghe attive), `GET /leagues/{slug}/logo` (logo lega, ETag+Cache-Control,
+  404 se assente), `/season`, `/standings`, `/stages`, `/stages/{n}/results`,
   `/players/{id}/progression`, `/matrix`.
-- Admin (`RequireAuthorization`): `PUT /season`, `POST /stages`, `POST|PUT|DELETE /results`,
-  `POST /import/pdf` (preview), `POST /import/commit`.
-- Auth: `POST /auth/login` → JWT. Credenziali admin da env (`Admin__Username`,
-  `Admin__PasswordHash` BCrypt). ⚠️ In `AuthService.Login` la verifica username/password è
-  **commentata** (accetta qualsiasi login) — va riabilitata prima di un uso reale.
+- Admin lega (`RequireAuthorization` + filtro: super-admin passa sempre, altrimenti claim `leagueId`
+  del token deve == lega del contesto, sennò 403): `PUT /season`, `POST /stages`,
+  `POST|PUT|DELETE /results`, `POST /import/pdf` (preview), `POST /import/commit`,
+  `POST|DELETE /logo` (logo lega corrente; valida PNG/JPEG/WebP/SVG, max 512 KB).
+- Super-admin (`/leagues`, filtro `Role==SuperAdmin`): `GET /leagues/all`, `POST /leagues`,
+  `PUT /leagues/{id}`, `GET /leagues/{id}/admins`, `POST /leagues/{id}/admins`,
+  `POST|DELETE /leagues/{id}/logo` (logo di una lega qualsiasi).
+- Auth: `POST /auth/login` → JWT (claim `role` + `leagueId`). `AuthService.LoginAsync` sceglie
+  admin della lega del contesto, altrimenti super-admin globale; verifica BCrypt **attiva**.
+  Super-admin seed da env (`Admin__Username`, `Admin__PasswordHash` BCrypt).
 
 ## Comandi
 
-​```bash
+```bash
 # DB locale
 docker compose up -d                       # postgres su :5432 (db/user/pass: classifica_lega)
 
@@ -75,13 +91,26 @@ dotnet test                                # unit test dominio
 cd client && npm start                     # ng serve, proxy /api → :5188
 npm run build                              # output in dist/classifica-lega/browser
 npm test                                   # karma/jasmine
-​```
+```
 
 ## Convenzioni
 
-- Identificatori in **inglese**; termini di dominio in **italiano** dove non c'è equivalente
-  pulito (Tappa/Stage, BonusRisultato, BonusPartecipazione). UI in italiano.
-- Logica di scoring **solo** nel `ScoringService` di dominio — non duplicare nel client
-  (`client/src/app/core/scoring.ts` è solo presentazione).
-- API base nel client è relativa (`'api'`) → funziona anche sotto sottocartella.
-- Niente segreti nel repo: JWT key e hash admin via env (`.env.prod.example`).
+- **Doc allineate**: `CLAUDE.md` (compresso, contesto) e `docs/guida-progetto.md` (discorsivo,
+  lettori umani) coprono stesso contenuto. Se una modifica tocca stack/struttura/dominio/API/
+  comandi/convenzioni, aggiornarli **entrambi**. A fine modifica, se rilevante, **chiedere**
+  all'utente se aggiornare le due guide.
+- **Routing client**: `''` = picker leghe; `gestione` = console super-admin (slug riservato,
+  `RESERVED_SLUGS`); `:slug` = `league-shell` (children classifica/tappe/inserimento/importazione/
+  impostazioni/login). `league.interceptor` deriva slug da 1° segmento URL → header `X-League-Slug`.
+  `auth.service` salva token per scope (slug o `__super`).
+- **Testata `league-shell`**: brand-block = logo app (`app-logo.svg`) + logo lega (`<img>` se
+  `current().hasLogo`, sennò avatar iniziali con colore derivato dallo slug) + nome. Nav con
+  **hamburger drawer** sotto 768px. Link **"Gestione leghe"** → `/gestione` visibile solo se
+  `auth.isSuperAdmin()`. Upload/rimozione logo lega in `impostazioni`; cache-bust via
+  `LeagueContextService.logoVersion`.
+- Identificatori **inglese**; termini dominio **italiano** dove non c'è equivalente pulito
+  (Tappa/Stage, BonusRisultato, BonusPartecipazione). UI italiano.
+- Scoring **solo** in `ScoringService` dominio — non duplicare nel client
+  (`client/src/app/core/scoring.ts` solo presentazione).
+- API base client relativa (`'api'`) → funziona sotto sottocartella.
+- Niente segreti nel repo: JWT key + hash admin via env (`.env.prod.example`).

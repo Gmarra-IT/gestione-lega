@@ -1,32 +1,70 @@
 <header class="topbar">
-  <a class="brand" routerLink="/">{{ brand() }}</a>
+  <a class="brand" routerLink="/" (click)="closeMenu()" aria-label="Tutte le leghe">
+    <img class="app-mark" src="app-logo.svg" alt="" width="28" height="28" />
+    <span class="league-badge">
+      @if (logoSrc(); as src) {
+        <img class="league-logo" [src]="src" [alt]="brand()" />
+      } @else {
+        <span class="avatar" [style.background]="avatarColor()">{{ initials() }}</span>
+      }
+    </span>
+    <span class="brand-name">{{ brand() }}</span>
+  </a>
 
   @if (leagues().length > 1) {
-    <select class="league-select" (change)="switchTo($any($event.target).value)">
+    <select class="league-select" (change)="switchTo($any($event.target).value)" aria-label="Cambia lega">
       @for (l of leagues(); track l.slug) {
         <option [value]="l.slug" [selected]="l.slug === slug()">{{ l.title ?? l.name }}</option>
       }
     </select>
   }
 
-  <nav>
-    <a [routerLink]="['/', slug(), 'classifica']" routerLinkActive="active">Classifica</a>
-    <a [routerLink]="['/', slug(), 'tappe']" routerLinkActive="active">Tappe</a>
-    @if (isAdmin()) {
-      <a [routerLink]="['/', slug(), 'inserimento']" routerLinkActive="active">Inserimento</a>
-      <a [routerLink]="['/', slug(), 'importazione']" routerLinkActive="active">Import PDF</a>
-      <a [routerLink]="['/', slug(), 'impostazioni']" routerLinkActive="active">Impostazioni</a>
-    }
+  <!-- Navigazione desktop -->
+  <nav class="nav-desktop">
+    <ng-container [ngTemplateOutlet]="navLinks" />
   </nav>
 
   <div class="spacer"></div>
 
+  <!-- Hamburger (mobile) -->
+  <button
+    type="button"
+    class="hamburger"
+    [class.open]="menuOpen()"
+    [attr.aria-expanded]="menuOpen()"
+    aria-label="Menu"
+    (click)="menuOpen.set(!menuOpen())"
+  >
+    <span></span><span></span><span></span>
+  </button>
+</header>
+
+<!-- Drawer mobile -->
+@if (menuOpen()) {
+  <div class="drawer-overlay" (click)="closeMenu()"></div>
+  <nav class="drawer" aria-label="Menu di navigazione">
+    <ng-container [ngTemplateOutlet]="navLinks" />
+  </nav>
+}
+
+<!-- Link condivisi tra nav desktop e drawer -->
+<ng-template #navLinks>
+  <a [routerLink]="['/', slug(), 'classifica']" routerLinkActive="active" (click)="closeMenu()">Classifica</a>
+  <a [routerLink]="['/', slug(), 'tappe']" routerLinkActive="active" (click)="closeMenu()">Tappe</a>
+  @if (isAdmin()) {
+    <a [routerLink]="['/', slug(), 'inserimento']" routerLinkActive="active" (click)="closeMenu()">Inserimento</a>
+    <a [routerLink]="['/', slug(), 'importazione']" routerLinkActive="active" (click)="closeMenu()">Import PDF</a>
+    <a [routerLink]="['/', slug(), 'impostazioni']" routerLinkActive="active" (click)="closeMenu()">Impostazioni</a>
+  }
+  @if (isSuperAdmin()) {
+    <a class="super" routerLink="/gestione" routerLinkActive="active" (click)="closeMenu()">Gestione leghe</a>
+  }
   @if (isAdmin()) {
     <button type="button" class="link-btn" (click)="logout()">Logout</button>
   } @else {
-    <a [routerLink]="['/', slug(), 'login']" routerLinkActive="active">Login</a>
+    <a [routerLink]="['/', slug(), 'login']" routerLinkActive="active" (click)="closeMenu()">Login</a>
   }
-</header>
+</ng-template>
 
 <main class="content">
   <router-outlet />
