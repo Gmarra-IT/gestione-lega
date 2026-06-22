@@ -5,10 +5,11 @@ import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { LeagueContextService } from '../../core/league-context.service';
 import { League, LeagueAdmin } from '../../core/models';
+import { ThemeToggleComponent } from '../../core/theme-toggle.component';
 
 @Component({
   selector: 'app-super-admin',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, ThemeToggleComponent],
   templateUrl: './super-admin.component.html',
   styleUrl: './super-admin.component.scss',
 })

@@ -5,10 +5,11 @@ import { ApiService } from '../../core/api.service';
 import { leagueAvatarColor, leagueInitials } from '../../core/league-avatar';
 import { LeagueContextService } from '../../core/league-context.service';
 import { League } from '../../core/models';
+import { ThemeToggleComponent } from '../../core/theme-toggle.component';
 
 @Component({
   selector: 'app-league-picker',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, ThemeToggleComponent],
   templateUrl: './league-picker.component.html',
   styleUrl: './league-picker.component.scss',
 })

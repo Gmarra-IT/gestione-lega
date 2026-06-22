@@ -5,10 +5,11 @@ import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { leagueAvatarColor, leagueInitials } from '../../core/league-avatar';
 import { LeagueContextService, RESERVED_SLUGS } from '../../core/league-context.service';
+import { ThemeToggleComponent } from '../../core/theme-toggle.component';
 
 @Component({
   selector: 'app-league-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, NgTemplateOutlet],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, NgTemplateOutlet, ThemeToggleComponent],
   templateUrl: './league-shell.component.html',
   styleUrl: './league-shell.component.scss',
 })

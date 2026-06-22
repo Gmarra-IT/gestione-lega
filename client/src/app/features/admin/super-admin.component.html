@@ -2,6 +2,7 @@
   <header class="admin-head">
     <a routerLink="/" class="back">← Leghe</a>
     <h1>Gestione leghe</h1>
+    <app-theme-toggle />
     @if (isSuperAdmin()) {
       <button type="button" class="link-btn" (click)="logout()">Logout</button>
     }

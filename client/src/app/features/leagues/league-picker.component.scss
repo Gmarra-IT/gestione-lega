@@ -10,7 +10,14 @@
 
 /* --- intestazione --- */
 .picker-head {
+  position: relative;
   margin-bottom: 2rem;
+}
+
+.theme-corner {
+  position: absolute;
+  top: 0;
+  right: 0;
 }
 
 .eyebrow {
