@@ -2,19 +2,20 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
 import {
-  ImportCommitResponse, ImportPreviewResponse, Season, Stage, StandingRow,
+  ImportCommitResponse, ImportPreviewResponse, PlayerSelection, Season, Stage,
 } from '../../core/models';
+import { PlayerPickerComponent } from '../../core/player-picker.component';
 
 interface RowState {
-  name: string;          // parsed name (display + name for a new player)
+  parsedName: string;          // nome letto dal PDF (colonna "Nome (PDF)")
   matchPoints: number;
-  playerId: number | null; // target player; null = create new from name
-  isNew: boolean;          // parser found no match
+  // Giocatore di destinazione: esistente, nuovo (nome editabile) o nessuno (riga ignorata).
+  selection: PlayerSelection;
 }
 
 @Component({
   selector: 'app-importazione',
-  imports: [FormsModule],
+  imports: [FormsModule, PlayerPickerComponent],
   templateUrl: './importazione.component.html',
   styleUrl: './importazione.component.scss',
 })
@@ -22,7 +23,6 @@ export class ImportazioneComponent {
   private api = inject(ApiService);
 
   season = signal<Season | null>(null);
-  players = signal<StandingRow[]>([]);
   stages = signal<Stage[]>([]);
 
   fileName = signal<string | null>(null);
@@ -50,8 +50,6 @@ export class ImportazioneComponent {
 
   constructor() {
     this.api.getSeason().subscribe((s) => this.season.set(s));
-    this.api.getStandings().subscribe((p) =>
-      this.players.set([...p].sort((a, b) => a.displayName.localeCompare(b.displayName))));
     this.api.getStages().subscribe((s) => this.stages.set(s));
   }
 
@@ -71,11 +69,12 @@ export class ImportazioneComponent {
         this.eventDate.set(p.eventDate);
         this.eventLinkId.set(p.eventLinkId);
         this.rows.set(p.rows.map((r) => ({
-          name: r.name,
+          parsedName: r.name,
           matchPoints: r.matchPoints,
-          playerId: r.matchedPlayerId,
-          isNew: r.isNew,
-        })));
+          selection: r.matchedPlayerId !== null
+            ? { kind: 'existing', id: r.matchedPlayerId, displayName: r.matchedPlayerName ?? r.name }
+            : { kind: 'new', name: r.name },
+        } as RowState)));
         this.busy.set(false);
       },
       error: (err) => {
@@ -86,10 +85,9 @@ export class ImportazioneComponent {
     input.value = ''; // allow re-selecting the same file
   }
 
-  setRowPlayer(index: number, value: number | 'new'): void {
-    const playerId = value === 'new' ? null : +value;
+  setRowSelection(index: number, selection: PlayerSelection): void {
     this.rows.update((rows) =>
-      rows.map((r, i) => (i === index ? { ...r, playerId } : r)));
+      rows.map((r, i) => (i === index ? { ...r, selection } : r)));
   }
 
   setRowPoints(index: number, value: number): void {
@@ -98,10 +96,13 @@ export class ImportazioneComponent {
   }
 
   matchedCount(): number {
-    return this.rows().filter((r) => r.playerId !== null).length;
+    return this.rows().filter((r) => r.selection?.kind === 'existing').length;
   }
   newCount(): number {
-    return this.rows().filter((r) => r.playerId === null).length;
+    return this.rows().filter((r) => r.selection?.kind === 'new').length;
+  }
+  skippedCount(): number {
+    return this.rows().filter((r) => r.selection === null).length;
   }
 
   commit(): void {
@@ -117,20 +118,21 @@ export class ImportazioneComponent {
       eventDate: this.eventDate(),
       eventLinkId: this.eventLinkId(),
       overwrite: this.overwrite(),
-      rows: this.rows().map((r) => ({
-        name: r.name,
-        matchPoints: r.matchPoints,
-        playerId: r.playerId,
-      })),
+      // Le righe senza selezione (selection null) sono ignorate.
+      rows: this.rows()
+        .filter((r) => r.selection !== null)
+        .map((r) => ({
+          name: r.selection!.kind === 'new' ? r.selection!.name : r.selection!.displayName,
+          matchPoints: r.matchPoints,
+          playerId: r.selection!.kind === 'existing' ? r.selection!.id : null,
+        })),
     }).subscribe({
       next: (res) => {
         this.done.set(res);
         this.busy.set(false);
         this.preview.set(null);
         this.rows.set([]);
-        // refresh players + stages for next import
-        this.api.getStandings().subscribe((p) =>
-          this.players.set([...p].sort((a, b) => a.displayName.localeCompare(b.displayName))));
+        // refresh stages for next import
         this.api.getStages().subscribe((s) => this.stages.set(s));
       },
       error: (err) => {

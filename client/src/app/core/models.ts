@@ -52,6 +52,22 @@ export interface StandingRow {
   totalPoints: number;
 }
 
+export interface PlayerLite {
+  id: number;
+  displayName: string;
+}
+
+export interface PlayerPage {
+  items: PlayerLite[];
+  total: number;
+}
+
+// Selezione emessa dal player picker: giocatore esistente oppure nuovo nome da creare.
+export type PlayerSelection =
+  | { kind: 'existing'; id: number; displayName: string }
+  | { kind: 'new'; name: string }
+  | null;
+
 export interface Stage {
   id: number;
   number: number;

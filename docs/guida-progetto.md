@@ -47,7 +47,8 @@ api/
   ClassificaLega.Tests/           # xUnit, focalizzati sul dominio (ScoringService, parser)
 client/
   src/app/core/                   # api.service, auth.service, interceptor JWT, league.interceptor,
-                                  #   league-context.service, league-reuse.strategy, guard, models
+                                  #   league-context.service, league-reuse.strategy, guard, models,
+                                  #   player-picker.component (typeahead server-side riusabile)
   src/app/features/               # leagues (picker), admin (console super-admin), league-shell,
                                   #   classifica, tappe, inserimento, importazione, impostazioni, login
   public/app-logo.svg             # logo dell'app, mostrato come mark fisso in testata
@@ -70,6 +71,9 @@ rappresenta l'incrocio tra una tappa (`Stage`) e un giocatore (`Player`), con i 
   i byte negli elenchi.
 - **Season** appartiene a una lega (`LeagueId`). Per ogni lega può esserci una sola stagione
   attiva alla volta (`IsActive`).
+- **Player** appartiene a una stagione (`SeasonId`): i giocatori sono quindi **per stagione**, non
+  per lega — stagioni diverse hanno elenchi giocatori distinti. L'abbinamento per nome usa una
+  chiave normalizzata (`NormalizedKey`, accent/case-insensitive — `DatabaseSeeder.Normalize`).
 - **User** rappresenta un amministratore. Il campo `Role` distingue tra `SuperAdmin` (globale, con
   `LeagueId` nullo, gestisce tutte le leghe) e `LeagueAdmin` (legato a una singola lega tramite
   `LeagueId`). La password è memorizzata come hash BCrypt. I nomi dei ruoli sono nella classe
@@ -93,7 +97,9 @@ JWT. La lega di riferimento viene risolta dall'header `X-League-Slug`.
 - **Pubblici**: `GET /leagues` (elenco delle leghe attive, per il picker),
   `GET /leagues/{slug}/logo` (logo della lega, con header `ETag` e `Cache-Control` e risposta 304
   condizionale; 404 se la lega non ha logo), `/season`, `/standings`, `/stages`,
-  `/stages/{n}/results`, `/players/{id}/progression`, `/matrix`.
+  `/stages/{n}/results`, `/players?search=&skip=&take=` (giocatori della stagione corrente,
+  filtrati per nome e paginati — alimenta il player picker; `take` di default 20, massimo 100),
+  `/players/{id}/progression`, `/matrix`.
 - **Admin di lega** (richiedono autenticazione, più un filtro: il super-admin passa sempre,
   altrimenti il claim `leagueId` del token deve coincidere con la lega del contesto, altrimenti
   risposta 403): `PUT /season`, `POST /stages`, `POST|PUT|DELETE /results`, `POST /import/pdf`
@@ -154,6 +160,16 @@ npm test                                   # karma/jasmine
   leghe"** che porta alla console `/gestione`. Il logo della lega si carica o si rimuove dalla
   pagina Impostazioni; dopo un cambio, `LeagueContextService.logoVersion` forza il refresh
   dell'immagine in testata (cache-busting).
+- **Player picker** (`core/player-picker.component`): è il componente unico per **selezionare o
+  aggiungere** un giocatore, riusato ovunque serva. È un typeahead che interroga il server
+  (`GET /players`) con ricerca e paginazione ("carica altri"): non scarica l'intero elenco, quindi
+  scala bene con l'arrivo di nuovi giocatori. Emette una `PlayerSelection`, che può essere un
+  giocatore esistente (`{id, name}`), un nuovo nome da creare (`{name}`) o `null`. Il menu a tendina
+  usa `position: fixed` calcolato dal campo, così non viene tagliato quando il picker vive dentro un
+  contenitore scrollabile (es. la tabella dell'import). È usato in due punti: in **inserimento**
+  manuale sostituisce il vecchio toggle Esistente/Nuovo con un solo campo; in **importazione**, per
+  ogni riga della revisione, permette di abbinare un giocatore esistente oppure crearne uno nuovo —
+  con il nome del PDF *oppure con un nome modificato a mano* — e svuotando il campo si ignora la riga.
 - Gli **identificatori** sono in inglese; i **termini di dominio** restano in italiano dove non
   esiste un equivalente pulito (Tappa/Stage, BonusRisultato, BonusPartecipazione). L'interfaccia è
   in italiano.

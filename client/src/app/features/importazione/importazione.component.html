@@ -50,8 +50,8 @@
   </div>
 
   <div class="card">
-    <h2>Righe ({{ rows().length }}) · {{ matchedCount() }} abbinate · {{ newCount() }} nuove</h2>
-    <p class="hint">Per ogni riga: abbina a un giocatore esistente o crea un nuovo giocatore col nome del PDF.</p>
+    <h2>Righe ({{ rows().length }}) · {{ matchedCount() }} abbinate · {{ newCount() }} nuove@if (skippedCount()) { · {{ skippedCount() }} ignorate }</h2>
+    <p class="hint">Per ogni riga: abbina a un giocatore esistente, oppure crea un nuovo giocatore — col nome del PDF o con un nome modificato a mano. Svuota il campo per ignorare la riga.</p>
     <div class="scroll">
       <table>
         <thead>
@@ -64,21 +64,17 @@
         </thead>
         <tbody>
           @for (r of rows(); track $index) {
-            <tr [class.is-new]="r.playerId === null">
-              <td class="num muted">{{ r.name === '' ? '' : $index + 1 }}</td>
-              <td>{{ r.name }}</td>
+            <tr [class.is-new]="r.selection?.kind === 'new'" [class.is-skipped]="r.selection === null">
+              <td class="num muted">{{ r.parsedName === '' ? '' : $index + 1 }}</td>
+              <td>{{ r.parsedName }}</td>
               <td class="num">
                 <input class="mp" type="number" min="0" max="12"
                        [ngModel]="r.matchPoints" (ngModelChange)="setRowPoints($index, +$event)" />
               </td>
               <td>
-                <select [ngModel]="r.playerId === null ? 'new' : r.playerId"
-                        (ngModelChange)="setRowPlayer($index, $event)">
-                  <option [ngValue]="'new'">➕ Crea «{{ r.name }}»</option>
-                  @for (pl of players(); track pl.playerId) {
-                    <option [ngValue]="pl.playerId">{{ pl.displayName }}</option>
-                  }
-                </select>
+                <app-player-picker
+                  [selection]="r.selection"
+                  (selectionChange)="setRowSelection($index, $event)" />
               </td>
             </tr>
           }

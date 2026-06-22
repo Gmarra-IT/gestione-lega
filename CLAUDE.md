@@ -33,7 +33,8 @@ api/
   ClassificaLega.Tests/           # xUnit, focus dominio (ScoringService, parser)
 client/
   src/app/core/                   # api, auth, interceptor, league.interceptor,
-                                  #   league-context.service, league-reuse.strategy, guard, models
+                                  #   league-context.service, league-reuse.strategy, guard, models,
+                                  #   player-picker.component (typeahead server-side riusabile)
   src/app/features/               # leagues(picker), admin(super-admin), league-shell,
                                   #   classifica, tappe, inserimento, importazione, impostazioni, login
   public/app-logo.svg             # logo app (mark fisso in testata)
@@ -50,6 +51,8 @@ Gerarchia: **League → Seasons → (Players, Stages) → Results**. `Result` = 
   richiesta). Campi: `Bytes` (bytea), `ContentType`, `ETag` (hash), `UpdatedAt`. `LeagueDto.HasLogo`
   espone la presenza senza scaricare i byte.
 - **Season** ha `LeagueId`. Una sola attiva per lega (`IsActive`).
+- **Player** ha `SeasonId` → i giocatori sono **per stagione** (non per lega). Match per
+  `NormalizedKey` (accent/case-insensitive, `DatabaseSeeder.Normalize`).
 - **User**: `Role` = `SuperAdmin` (globale, `LeagueId=null`) o `LeagueAdmin` (legato a `LeagueId`).
   `PasswordHash` BCrypt. Vedi `UserRoles`.
 - **Tenancy**: middleware legge header `X-League-Slug` → risolve lega attiva → `LeagueContext.Current`
@@ -65,7 +68,8 @@ Base `/api`. Lettura **pubblica**, scrittura **protetta** (JWT). Lega risolta da
 
 - Public: `GET /leagues` (leghe attive), `GET /leagues/{slug}/logo` (logo lega, ETag+Cache-Control,
   404 se assente), `/season`, `/standings`, `/stages`, `/stages/{n}/results`,
-  `/players/{id}/progression`, `/matrix`.
+  `/players?search=&skip=&take=` (giocatori della season, filtrati+paginati per il picker;
+  default take=20, max 100), `/players/{id}/progression`, `/matrix`.
 - Admin lega (`RequireAuthorization` + filtro: super-admin passa sempre, altrimenti claim `leagueId`
   del token deve == lega del contesto, sennò 403): `PUT /season`, `POST /stages`,
   `POST|PUT|DELETE /results`, `POST /import/pdf` (preview), `POST /import/commit`,
@@ -111,6 +115,12 @@ npm test                                   # karma/jasmine
   **hamburger drawer** sotto 768px. Link **"Gestione leghe"** → `/gestione` visibile solo se
   `auth.isSuperAdmin()`. Upload/rimozione logo lega in `impostazioni`; cache-bust via
   `LeagueContextService.logoVersion`.
+- **Player picker** (`core/player-picker.component`): unico punto per **selezionare/aggiungere** un
+  giocatore. Typeahead server-side (`GET /players`, debounce + "carica altri") → scala con i nuovi
+  player senza scaricare l'intera lista. Emette `PlayerSelection` = esistente `{id,name}` | nuovo
+  `{name}` | `null`. Menu `position: fixed` (no clipping in contenitori scrollabili). Usato in
+  `inserimento` (un solo campo, no toggle Esistente/Nuovo) e in `importazione` (un picker per riga;
+  nuovo player con **nome editabile** anche diverso da quello del PDF; campo svuotato = riga ignorata).
 - Identificatori **inglese**; termini dominio **italiano** dove non c'è equivalente pulito
   (Tappa/Stage, BonusRisultato, BonusPartecipazione). UI italiano.
 - Scoring **solo** in `ScoringService` dominio — non duplicare nel client

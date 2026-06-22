@@ -4,6 +4,12 @@ public record SeasonDto(int Id, string Name, int TotalStages, int CountingStages
 
 public record StandingRowDto(int Position, int PlayerId, string DisplayName, int BestN, int TotalPoints);
 
+/// <summary>Voce minima giocatore per il picker (id + nome, senza punteggi).</summary>
+public record PlayerLiteDto(int Id, string DisplayName);
+
+/// <summary>Pagina di giocatori filtrata: items della pagina corrente + totale per il "carica altri".</summary>
+public record PlayerPageDto(IReadOnlyList<PlayerLiteDto> Items, int Total);
+
 public record StageDto(int Id, int Number, string? Name, DateOnly? Date, string? EventLinkId, int ResultCount);
 
 public record StageResultDto(

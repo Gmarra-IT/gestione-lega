@@ -2,13 +2,14 @@ import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
 import { LeagueContextService } from '../../core/league-context.service';
-import { Season, Stage, StageResult, StandingRow } from '../../core/models';
+import { PlayerSelection, Season, Stage, StageResult } from '../../core/models';
+import { PlayerPickerComponent } from '../../core/player-picker.component';
 import { bonusPartecipazione, bonusRisultato } from '../../core/scoring';
 import { ImportazioneComponent } from '../importazione/importazione.component';
 
 @Component({
   selector: 'app-inserimento',
-  imports: [FormsModule, ImportazioneComponent],
+  imports: [FormsModule, ImportazioneComponent, PlayerPickerComponent],
   templateUrl: './inserimento.component.html',
   styleUrl: './inserimento.component.scss',
 })
@@ -21,14 +22,12 @@ export class InserimentoComponent {
 
   season = signal<Season | null>(null);
   stages = signal<Stage[]>([]);
-  players = signal<StandingRow[]>([]);
   stageResults = signal<StageResult[]>([]);
 
   // form state
   stageNumber = signal<number | null>(null);
-  mode = signal<'existing' | 'new'>('existing');
-  playerId = signal<number | null>(null);
-  newPlayerName = signal('');
+  // Giocatore: un unico picker che cerca un esistente o crea un nuovo nome.
+  selection = signal<PlayerSelection>(null);
   matchPoints = signal<number>(12);
 
   // count of the selected player's OTHER stages with points > 0 (for bonus preview)
@@ -57,13 +56,12 @@ export class InserimentoComponent {
       if (n !== null) this.api.getStageResults(n).subscribe((r) => this.stageResults.set(r));
     });
     effect(() => {
-      this.recomputePrior(this.mode(), this.playerId(), this.stageNumber());
+      this.recomputePrior(this.selection(), this.stageNumber());
     });
   }
 
   private load(): void {
     this.api.getSeason().subscribe((s) => this.season.set(s));
-    this.refreshPlayers();
     // Reset selezione tappa: la stagione potrebbe avere tappe diverse → riseleziona la prima.
     this.stageNumber.set(null);
     this.api.getStages().subscribe((st) => {
@@ -72,17 +70,12 @@ export class InserimentoComponent {
     });
   }
 
-  private refreshPlayers(): void {
-    this.api.getStandings().subscribe((p) =>
-      this.players.set([...p].sort((a, b) => a.displayName.localeCompare(b.displayName))));
-  }
-
-  private recomputePrior(mode: 'existing' | 'new', playerId: number | null, stageNumber: number | null): void {
-    if (mode === 'new' || playerId === null) {
+  private recomputePrior(selection: PlayerSelection, stageNumber: number | null): void {
+    if (selection?.kind !== 'existing') {
       this.priorParticipations.set(0);
       return;
     }
-    this.api.getProgression(playerId).subscribe((prog) => {
+    this.api.getProgression(selection.id).subscribe((prog) => {
       const participated = prog.points.filter(
         (pt) => pt.stageTotal !== null && pt.stageNumber !== stageNumber);
       this.priorParticipations.set(participated.length);
@@ -97,9 +90,8 @@ export class InserimentoComponent {
     this.api.deleteResult(r.id).subscribe({
       next: () => {
         this.ok.set(`Risultato di ${r.displayName} eliminato.`);
-        this.refreshPlayers();
         if (n !== null) this.api.getStageResults(n).subscribe((res) => this.stageResults.set(res));
-        this.recomputePrior(this.mode(), this.playerId(), n);
+        this.recomputePrior(this.selection(), n);
       },
       error: (err) => this.error.set(err.error?.error ?? 'Errore nell\'eliminazione.'),
     });
@@ -110,21 +102,22 @@ export class InserimentoComponent {
     this.ok.set(null);
     const n = this.stageNumber();
     if (n === null) { this.error.set('Seleziona una tappa.'); return; }
+    const sel = this.selection();
+    if (sel === null) { this.error.set('Seleziona o crea un giocatore.'); return; }
 
     this.busy.set(true);
     this.api.upsertResult({
       stageNumber: n,
-      playerId: this.mode() === 'existing' ? this.playerId() : null,
-      newPlayerName: this.mode() === 'new' ? this.newPlayerName().trim() : null,
+      playerId: sel.kind === 'existing' ? sel.id : null,
+      newPlayerName: sel.kind === 'new' ? sel.name.trim() : null,
       matchPoints: this.matchPoints(),
     }).subscribe({
       next: (res) => {
         this.ok.set(`${res.displayName}: ${res.matchPoints} + ${res.bonusRisultato} + ${res.bonusPartecipazione} = ${res.totalPoints}`);
         this.busy.set(false);
-        this.newPlayerName.set('');
-        this.refreshPlayers();
+        this.selection.set(null);
         this.api.getStageResults(n).subscribe((r) => this.stageResults.set(r));
-        this.recomputePrior(this.mode(), this.playerId(), n);
+        this.recomputePrior(this.selection(), n);
       },
       error: (err) => {
         this.error.set(err.error?.error ?? 'Errore nel salvataggio.');

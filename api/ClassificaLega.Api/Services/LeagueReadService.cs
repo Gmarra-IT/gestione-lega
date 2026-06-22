@@ -64,6 +64,33 @@ public class LeagueReadService(AppDbContext db, LeagueContext league)
             .ToList();
     }
 
+    // Giocatori della stagione corrente, filtrati e paginati (per il picker server-side).
+    // Filtro su NormalizedKey (accent/case-insensitive, stessa logica del match import).
+    public async Task<PlayerPageDto?> GetPlayersAsync(string? search, int skip, int take)
+    {
+        var season = await CurrentSeasonAsync();
+        if (season is null) return null;
+
+        take = Math.Clamp(take, 1, 100);
+        skip = Math.Max(skip, 0);
+
+        var query = db.Players.AsNoTracking().Where(p => p.SeasonId == season.Id);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var key = DatabaseSeeder.Normalize(search);
+            query = query.Where(p => p.NormalizedKey.Contains(key));
+        }
+
+        var total = await query.CountAsync();
+        var items = await query
+            .OrderBy(p => p.DisplayName)
+            .Skip(skip).Take(take)
+            .Select(p => new PlayerLiteDto(p.Id, p.DisplayName))
+            .ToListAsync();
+
+        return new PlayerPageDto(items, total);
+    }
+
     public async Task<IReadOnlyList<StageDto>?> GetStagesAsync()
     {
         var season = await CurrentSeasonAsync();

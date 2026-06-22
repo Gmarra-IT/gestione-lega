@@ -52,6 +52,10 @@ tr.is-new td {
   background: var(--new-soft);
 }
 
+tr.is-skipped td {
+  opacity: 0.5;
+}
+
 input.mp {
   width: 64px;
   text-align: right;

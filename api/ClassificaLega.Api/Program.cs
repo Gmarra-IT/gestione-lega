@@ -144,6 +144,10 @@ api.MapGet("/stages", async (LeagueReadService svc) =>
 api.MapGet("/stages/{number:int}/results", async (int number, LeagueReadService svc) =>
     await svc.GetStageResultsAsync(number) is { } r ? Results.Ok(r) : Results.NotFound());
 
+// Picker giocatori: ricerca + paginazione lato server (scala con l'arrivo di nuovi player).
+api.MapGet("/players", async (string? search, int? skip, int? take, LeagueReadService svc) =>
+    await svc.GetPlayersAsync(search, skip ?? 0, take ?? 20) is { } page ? Results.Ok(page) : Results.NotFound());
+
 api.MapGet("/players/{id:int}/progression", async (int id, LeagueReadService svc) =>
     await svc.GetProgressionAsync(id) is { } r ? Results.Ok(r) : Results.NotFound());
 

@@ -22,30 +22,9 @@
 
     <div>
       <label>Giocatore</label>
-      <div class="toggle">
-        <button type="button" [class.active]="mode() === 'existing'" (click)="mode.set('existing')">Esistente</button>
-        <button type="button" [class.active]="mode() === 'new'" (click)="mode.set('new')">Nuovo</button>
-      </div>
+      <app-player-picker [(selection)]="selection" />
+      <p class="hint">Cerca un giocatore esistente oppure digita un nome nuovo e scegli «Crea».</p>
     </div>
-
-    @if (mode() === 'existing') {
-      <div>
-        <label for="player">Seleziona giocatore</label>
-        <select id="player" name="player"
-                [ngModel]="playerId()" (ngModelChange)="playerId.set($event === null ? null : +$event)">
-          <option [ngValue]="null" disabled>— scegli —</option>
-          @for (p of players(); track p.playerId) {
-            <option [ngValue]="p.playerId">{{ p.displayName }}</option>
-          }
-        </select>
-      </div>
-    } @else {
-      <div>
-        <label for="newName">Nome nuovo giocatore</label>
-        <input id="newName" name="newName"
-               [ngModel]="newPlayerName()" (ngModelChange)="newPlayerName.set($event)" />
-      </div>
-    }
 
     <div>
       <label for="mp">Punti effettivi (0–12)</label>
@@ -65,7 +44,7 @@
     @if (ok()) { <div class="msg ok">{{ ok() }}</div> }
 
     <button class="btn" type="submit"
-            [disabled]="busy() || (mode() === 'existing' && playerId() === null) || (mode() === 'new' && !newPlayerName().trim())">
+            [disabled]="busy() || selection() === null">
       {{ busy() ? 'Salvataggio…' : 'Salva risultato' }}
     </button>
   </form>

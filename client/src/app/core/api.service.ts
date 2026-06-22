@@ -1,10 +1,10 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
   CreateLeagueAdminRequest, CreateLeagueRequest, CreateSeasonRequest, ImportCommitRequest,
   ImportCommitResponse, ImportPreviewResponse, League, LeagueAdmin, LoginRequest, LoginResponse,
-  Matrix, Progression, Season, Stage, StageResult, StandingRow, UpdateLeagueAdminRequest,
+  Matrix, PlayerPage, Progression, Season, Stage, StageResult, StandingRow, UpdateLeagueAdminRequest,
   UpdateLeagueRequest, UpdateSeasonRequest, UpsertResultRequest, UpsertStageRequest,
 } from './models';
 
@@ -83,6 +83,12 @@ export class ApiService {
   }
   getStages(): Observable<Stage[]> {
     return this.http.get<Stage[]>(`${this.base}/stages`);
+  }
+  // Picker giocatori: ricerca + paginazione lato server.
+  getPlayers(search: string, skip = 0, take = 20): Observable<PlayerPage> {
+    let params = new HttpParams().set('skip', skip).set('take', take);
+    if (search) params = params.set('search', search);
+    return this.http.get<PlayerPage>(`${this.base}/players`, { params });
   }
   getStageResults(number: number): Observable<StageResult[]> {
     return this.http.get<StageResult[]>(`${this.base}/stages/${number}/results`);
