@@ -70,7 +70,9 @@ rappresenta l'incrocio tra una tappa (`Stage`) e un giocatore (`Player`), con i 
   un flag `HasLogo`, così il client sa se mostrare l'immagine o l'avatar di ripiego senza scaricare
   i byte negli elenchi.
 - **Season** appartiene a una lega (`LeagueId`). Per ogni lega può esserci una sola stagione
-  attiva alla volta (`IsActive`).
+  attiva alla volta (`IsActive`). Porta inoltre la **`ScoringRule`** della stagione (vedi Scoring),
+  serializzata su una colonna `jsonb` tramite value converter (niente tabelle figlie, query Season
+  leggere). `CountingStages` funge da `CountBestN`.
 - **Player** appartiene a una stagione (`SeasonId`): i giocatori sono quindi **per stagione**, non
   per lega — stagioni diverse hanno elenchi giocatori distinti. L'abbinamento per nome usa una
   chiave normalizzata (`NormalizedKey`, accent/case-insensitive — `DatabaseSeeder.Normalize`).
@@ -82,12 +84,31 @@ rappresenta l'incrocio tra una tappa (`Stage`) e un giocatore (`Player`), con i 
   corrispondente e la espone tramite `LeagueContext.Current` (servizio *scoped*, una istanza per
   richiesta). I servizi di lettura, scrittura e import lavorano sempre a partire da
   `RequireLeagueId()` e dalla stagione attiva di quella lega: l'isolamento tra leghe passa di qui.
-- **Scoring** (`ScoringService`): il punteggio è
-  `TotalPoints = MatchPoints + BonusRisultato + BonusPartecipazione`. Il bonus partecipazione
-  dipende dalla storia ordinata delle tappe del giocatore, perciò ogni modifica a un risultato deve
-  richiamare `RecomputePlayerAsync`.
+- **Scoring** (`ScoringService`, logica pura testabile, parametrizzata sulla `ScoringRule`): il
+  punteggio di un torneo è
+  `tournamentTotal = matchPoints + scoreBonus + positionBonus + participationPoints`.
+  - `matchPoints = Wins·PointsPerWin + Draws·PointsPerDraw + Losses·PointsPerLoss`. I campi `Wins`,
+    `Draws`, `Losses` e `Position` sul `Result` sono **opzionali**: se W/D/L sono valorizzati i match
+    points vengono derivati e salvati, altrimenti si usa il `MatchPoints` inserito direttamente (es.
+    dall'import PDF, che fornisce già il punteggio aggregato e la posizione finale).
+  - `scoreBonus` è un **bonus a soglia** sui match points: si applica la voce di `ScoreBonuses` con
+    `FromMatchPoints` più alto ≤ matchPoints (0 se nessuna). Sostituisce la vecchia tabella
+    record→bonus a corrispondenza esatta.
+  - `positionBonus` deriva dalla `Position` (lista `PositionBonuses`), `participationPoints` dalla
+    fascia di presenza (`ParticipationTiers`, soglia sull'indice progressivo 1-based della
+    partecipazione, in ordine cronologico data→numero tappa→id).
+  - I componenti calcolati sono **persistiti** sul `Result`; ogni modifica a un risultato richiama
+    `RecomputePlayerAsync`, che li ricalcola per tutti i risultati del giocatore.
+- **`ScoringRule`** è la configurazione di scoring 1:1 con la stagione: `PointsPerWin/Draw/Loss`,
+  `PositionBonuses[]`, `ScoreBonuses[]`, `ParticipationTiers[]`, con `Validate()` (valori non
+  negativi, chiavi uniche, liste ordinate). Il default (`ScoringRule.Default()`) riversa il cablato
+  storico di Massarosa: scoreBonus 6→1, 7→2, 8→3, 9→4, 10→6, 12→8; presenza +1 dalla 1ª tappa, +2
+  dalla 6ª. È modificabile via `PUT /season/scoring-rule` (ricalcola tutti i risultati).
 - **Classifica**: criterio "Best N tappe" — si sommano le migliori `CountingStages` tappe (di
-  default 8) sul totale `TotalStages` (12).
+  default 8) sul totale `TotalStages` (12). Ordinamento (invariato): `TotalPoints` (somma dei tornei
+  contati) decrescente, poi `AbsoluteTotal` (somma di tutti i tornei) decrescente, poi nome; i pari
+  merito condividono il `Rank`. Ogni riga espone il breakdown dei tornei contati (`BestResults`,
+  `TournamentsPlayed`, `TournamentsCountedForTotal`).
 
 ## API (endpoint)
 
@@ -102,8 +123,11 @@ JWT. La lega di riferimento viene risolta dall'header `X-League-Slug`.
   `/players/{id}/progression`, `/matrix`.
 - **Admin di lega** (richiedono autenticazione, più un filtro: il super-admin passa sempre,
   altrimenti il claim `leagueId` del token deve coincidere con la lega del contesto, altrimenti
-  risposta 403): `PUT /season`, `POST /stages`, `POST|PUT|DELETE /results`, `POST /import/pdf`
-  (anteprima dell'import), `POST /import/commit`, `POST|DELETE /logo` (carica o rimuove il logo
+  risposta 403): `PUT /season`, `PUT /season/scoring-rule` (sostituisce la `ScoringRule` della
+  stagione e ricalcola tutti i risultati), `POST /stages`, `POST|PUT|DELETE /results` (accettano
+  `Wins/Draws/Losses/Position` opzionali oltre a `MatchPoints`), `POST /import/pdf`
+  (anteprima dell'import), `POST /import/commit` (propaga la `Position` finale dal PDF),
+  `POST|DELETE /logo` (carica o rimuove il logo
   della lega corrente; valida formato PNG/JPEG/WebP/SVG e dimensione max 1 MB come backstop.
   Il client ridimensiona e ricomprime l'immagine in WebP prima dell'upload — `core/image-compress.ts`,
   lato massimo 512px — così l'admin può caricare anche foto pesanti dal telefono senza preparare il file).
@@ -171,10 +195,11 @@ npm test                                   # karma/jasmine
   ogni riga della revisione, permette di abbinare un giocatore esistente oppure crearne uno nuovo —
   con il nome del PDF *oppure con un nome modificato a mano* — e svuotando il campo si ignora la riga.
 - Gli **identificatori** sono in inglese; i **termini di dominio** restano in italiano dove non
-  esiste un equivalente pulito (Tappa/Stage, BonusRisultato, BonusPartecipazione). L'interfaccia è
-  in italiano.
+  esiste un equivalente pulito (Tappa/Stage, ScoreBonus, PositionBonus, ParticipationPoints).
+  L'interfaccia è in italiano.
 - La **logica di scoring** vive esclusivamente nel `ScoringService` del dominio: non va duplicata
-  nel client (`client/src/app/core/scoring.ts` serve solo alla presentazione).
+  nel client (`client/src/app/core/scoring.ts` serve solo alla presentazione — funzioni
+  parametrizzate sulla `ScoringRule` della stagione per l'anteprima live in inserimento).
 - L'API base del client è relativa (`'api'`), così funziona anche servita da una sottocartella.
 - Nessun segreto nel repo: la chiave JWT e l'hash dell'admin vanno passati via variabili d'ambiente
   (vedi `.env.prod.example`).

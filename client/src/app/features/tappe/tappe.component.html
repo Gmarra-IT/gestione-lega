@@ -26,7 +26,7 @@
         <tbody>
           @for (row of m.rows; track row.playerId) {
             <tr class="clickable" [class.sel]="isSelected(row.playerId)" (click)="toggle(row.playerId)">
-              <td>{{ row.position }}</td>
+              <td>{{ row.rank }}</td>
               <td>
                 <span class="swatch" [style.background]="colorFor(row)"
                       [style.opacity]="isSelected(row.playerId) ? 1 : 0.25"></span>
@@ -37,8 +37,8 @@
                   {{ c.totalPoints === null ? '·' : c.totalPoints }}
                 </td>
               }
-              <td class="num"><strong>{{ row.bestN }}</strong></td>
-              <td class="num muted">{{ row.totalPoints }}</td>
+              <td class="num"><strong>{{ row.totalPoints }}</strong></td>
+              <td class="num muted">{{ row.absoluteTotal }}</td>
             </tr>
           }
         </tbody>

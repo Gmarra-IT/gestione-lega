@@ -19,6 +19,46 @@
   margin-top: 2rem;
 }
 
+.rule-form {
+  max-width: 560px;
+}
+
+.points-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+}
+
+.rule-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.rule-list-head h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.rule-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.rule-row input {
+  width: 4.5rem;
+}
+
+.btn.small {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
+}
+
 .logo-card {
   max-width: 420px;
   display: flex;

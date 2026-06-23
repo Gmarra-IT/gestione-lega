@@ -5,7 +5,7 @@ import {
   CreateLeagueAdminRequest, CreateLeagueRequest, CreateSeasonRequest, ImportCommitRequest,
   ImportCommitResponse, ImportPreviewResponse, League, LeagueAdmin, LoginRequest, LoginResponse,
   Matrix, PlayerPage, Progression, Season, Stage, StageResult, StandingRow, UpdateLeagueAdminRequest,
-  UpdateLeagueRequest, UpdateSeasonRequest, UpsertResultRequest, UpsertStageRequest,
+  UpdateLeagueRequest, UpdateScoringRuleRequest, UpdateSeasonRequest, UpsertResultRequest, UpsertStageRequest,
 } from './models';
 
 @Injectable({ providedIn: 'root' })
@@ -106,6 +106,9 @@ export class ApiService {
   }
   createSeason(req: CreateSeasonRequest): Observable<Season> {
     return this.http.post<Season>(`${this.base}/seasons`, req);
+  }
+  updateScoringRule(req: UpdateScoringRuleRequest): Observable<Season> {
+    return this.http.put<Season>(`${this.base}/season/scoring-rule`, req);
   }
   upsertStage(req: UpsertStageRequest): Observable<Stage> {
     return this.http.post<Stage>(`${this.base}/stages`, req);

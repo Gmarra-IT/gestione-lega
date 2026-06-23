@@ -49,7 +49,7 @@ public class LeagueWriteService(AppDbContext db, LeagueContext league)
         db.Seasons.Add(season);
         await db.SaveChangesAsync();
 
-        return new SeasonDto(season.Id, season.Name, season.TotalStages, season.CountingStages, season.IsActive);
+        return ToSeasonDto(season);
     }
 
     public async Task<SeasonDto> UpdateSeasonAsync(UpdateSeasonRequest req)
@@ -71,7 +71,25 @@ public class LeagueWriteService(AppDbContext db, LeagueContext league)
         season.CountingStages = req.CountingStages;
         await db.SaveChangesAsync();
 
-        return new SeasonDto(season.Id, season.Name, season.TotalStages, season.CountingStages, season.IsActive);
+        return ToSeasonDto(season);
+    }
+
+    /// <summary>Sostituisce l'intera ScoringRule della stagione e ricalcola tutti i risultati.</summary>
+    public async Task<SeasonDto> UpdateScoringRuleAsync(UpdateScoringRuleRequest req)
+    {
+        var season = await CurrentSeasonAsync();
+        var rule = req.ScoringRule ?? throw ApiException.BadRequest("ScoringRule obbligatoria.");
+        if (rule.Validate() is { } err) throw ApiException.BadRequest(err);
+
+        season.ScoringRule = rule;
+        await db.SaveChangesAsync();
+
+        // I bonus dipendono dalla regola → ricalcola tutti i giocatori della stagione.
+        var playerIds = await db.Players.Where(p => p.SeasonId == season.Id).Select(p => p.Id).ToListAsync();
+        foreach (var pid in playerIds)
+            await RecomputePlayerAsync(pid);
+
+        return ToSeasonDto(season);
     }
 
     public async Task<StageDto> UpsertStageAsync(UpsertStageRequest req)
@@ -112,7 +130,7 @@ public class LeagueWriteService(AppDbContext db, LeagueContext league)
     public async Task<StageResultDto> UpsertResultAsync(UpsertResultRequest req)
     {
         var season = await CurrentSeasonAsync();
-        ValidateMatchPoints(req.MatchPoints);
+        var matchPoints = ResolveMatchPoints(season.ScoringRule, req.MatchPoints, req.Wins, req.Draws, req.Losses);
 
         var stage = await db.Stages
             .FirstOrDefaultAsync(s => s.SeasonId == season.Id && s.Number == req.StageNumber)
@@ -128,15 +146,11 @@ public class LeagueWriteService(AppDbContext db, LeagueContext league)
             {
                 StageId = stage.Id,
                 PlayerId = player.Id,
-                MatchPoints = req.MatchPoints,
                 CreatedAt = DateTimeOffset.UtcNow,
             };
             db.Results.Add(result);
         }
-        else
-        {
-            result.MatchPoints = req.MatchPoints;
-        }
+        ApplyInputs(result, matchPoints, req.Wins, req.Draws, req.Losses, req.Position);
         await db.SaveChangesAsync();
 
         await RecomputePlayerAsync(player.Id);
@@ -145,10 +159,11 @@ public class LeagueWriteService(AppDbContext db, LeagueContext league)
 
     public async Task<StageResultDto> UpdateResultAsync(int resultId, UpdateResultRequest req)
     {
-        ValidateMatchPoints(req.MatchPoints);
+        var season = await CurrentSeasonAsync();
+        var matchPoints = ResolveMatchPoints(season.ScoringRule, req.MatchPoints, req.Wins, req.Draws, req.Losses);
         var result = await LoadActiveResultAsync(resultId);
 
-        result.MatchPoints = req.MatchPoints;
+        ApplyInputs(result, matchPoints, req.Wins, req.Draws, req.Losses, req.Position);
         await db.SaveChangesAsync();
 
         await RecomputePlayerAsync(result.PlayerId);
@@ -166,10 +181,35 @@ public class LeagueWriteService(AppDbContext db, LeagueContext league)
 
     // --- helpers ---
 
-    private static void ValidateMatchPoints(int mp)
+    private static SeasonDto ToSeasonDto(Season s) =>
+        new(s.Id, s.Name, s.TotalStages, s.CountingStages, s.IsActive, s.ScoringRule);
+
+    // Deriva i match points da W/D/L se tutti valorizzati, altrimenti usa MatchPoints diretto.
+    private static int ResolveMatchPoints(ScoringRule rule, int? matchPoints, int? wins, int? draws, int? losses)
     {
-        if (mp < 0 || mp > 12)
-            throw ApiException.BadRequest("MatchPoints deve essere tra 0 e 12.");
+        if (wins is { } w && draws is { } d && losses is { } l)
+        {
+            if (w < 0 || d < 0 || l < 0)
+                throw ApiException.BadRequest("Wins/Draws/Losses devono essere >= 0.");
+            return ScoringService.MatchPoints(w, d, l, rule);
+        }
+        if (matchPoints is { } mp)
+        {
+            if (mp < 0) throw ApiException.BadRequest("MatchPoints deve essere >= 0.");
+            return mp;
+        }
+        throw ApiException.BadRequest("Serve MatchPoints oppure Wins/Draws/Losses.");
+    }
+
+    private static void ApplyInputs(Result result, int matchPoints, int? wins, int? draws, int? losses, int? position)
+    {
+        if (position is <= 0)
+            throw ApiException.BadRequest("Position deve essere > 0.");
+        result.MatchPoints = matchPoints;
+        result.Wins = wins;
+        result.Draws = draws;
+        result.Losses = losses;
+        result.Position = position;
     }
 
     private async Task<Player> ResolvePlayerAsync(Season season, int? playerId, string? newPlayerName)
@@ -209,24 +249,32 @@ public class LeagueWriteService(AppDbContext db, LeagueContext league)
             ?? throw ApiException.NotFound($"Risultato {resultId} inesistente.");
     }
 
-    /// <summary>Recompute bonus risultato/partecipazione and total for every result of a player,
-    /// since participation bonus depends on the player's ordered stage history.</summary>
+    /// <summary>Ricalcola scoreBonus/positionBonus/participationPoints e totale per ogni result del
+    /// giocatore: la fascia presenza dipende dalla storia ordinata (data, poi numero tappa, poi id).</summary>
     public async Task RecomputePlayerAsync(int playerId)
     {
         var results = await db.Results
             .Where(r => r.PlayerId == playerId)
-            .Select(r => new { Result = r, r.Stage.Number })
+            .Include(r => r.Stage)
             .ToListAsync();
+        if (results.Count == 0) return;
 
-        var bonusByStageId = ScoringService.RecomputePartecipazione(
-            results.Select(x => (x.Result.StageId, x.Number)));
+        var seasonId = results[0].Stage.SeasonId;
+        var rule = (await db.Seasons.AsNoTracking().FirstAsync(s => s.Id == seasonId)).ScoringRule;
 
-        foreach (var x in results)
+        var ordered = results
+            .OrderBy(r => r.Stage.Date ?? DateOnly.MaxValue)
+            .ThenBy(r => r.Stage.Number)
+            .ThenBy(r => r.StageId)
+            .ToList();
+
+        for (int i = 0; i < ordered.Count; i++)
         {
-            var r = x.Result;
-            r.BonusRisultato = ScoringService.BonusRisultato(r.MatchPoints);
-            r.BonusPartecipazione = bonusByStageId[r.StageId];
-            r.TotalPoints = ScoringService.ComputeTotalPoints(r.MatchPoints, r.BonusRisultato, r.BonusPartecipazione);
+            var r = ordered[i];
+            r.ScoreBonus = ScoringService.ScoreBonusFor(r.MatchPoints, rule);
+            r.PositionBonus = ScoringService.PositionBonusFor(r.Position, rule);
+            r.ParticipationPoints = ScoringService.ParticipationPointsFor(i + 1, rule);
+            r.TotalPoints = r.MatchPoints + r.ScoreBonus + r.PositionBonus + r.ParticipationPoints;
             r.UpdatedAt = DateTimeOffset.UtcNow;
         }
         await db.SaveChangesAsync();
@@ -240,9 +288,14 @@ public class LeagueWriteService(AppDbContext db, LeagueContext league)
                 r.Id,
                 r.PlayerId,
                 r.Player.DisplayName,
+                r.Wins,
+                r.Draws,
+                r.Losses,
+                r.Position,
                 r.MatchPoints,
-                r.BonusRisultato,
-                r.BonusPartecipazione,
+                r.ScoreBonus,
+                r.PositionBonus,
+                r.ParticipationPoints,
                 r.TotalPoints))
             .FirstAsync();
     }

@@ -71,7 +71,7 @@ export class TappeComponent implements AfterViewInit, OnDestroy {
   }
 
   colorFor(row: MatrixRow): string {
-    return PALETTE[(row.position - 1) % PALETTE.length];
+    return PALETTE[(row.rank - 1) % PALETTE.length];
   }
 
   private cumulative(row: MatrixRow): number[] {

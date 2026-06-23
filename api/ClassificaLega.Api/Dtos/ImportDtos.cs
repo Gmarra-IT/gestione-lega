@@ -19,8 +19,9 @@ public record ImportPreviewResponse(
     int ExistingResultCount,
     IReadOnlyList<ImportPreviewRow> Rows);
 
-/// <summary>One row the client confirmed for commit. PlayerId null = create a new player from Name.</summary>
-public record ImportCommitRow(string Name, int MatchPoints, int? PlayerId);
+/// <summary>One row the client confirmed for commit. PlayerId null = create a new player from Name.
+/// Position = piazzamento finale dal PDF (per il bonus piazzamento).</summary>
+public record ImportCommitRow(string Name, int MatchPoints, int? PlayerId, int? Position);
 
 public record ImportCommitRequest(
     int StageNumber,

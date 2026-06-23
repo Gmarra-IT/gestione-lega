@@ -3,6 +3,7 @@ Salvare uno snapshot, come testo sul db se è la miglior cosa, del file importat
 
 
 Vorrei gestire in fase di rivisita dell'importazione, oltre a nuovo player con quel nome o selezione di uno esistente, la modifica manuale del nome per un nuovo giocatore, tipo nuovo + scrivi. Nel fare questo, magari creiamo qualcosa di piu potente della combobox che carichi in maniera pagina e filtrata i nominativi così da scalare con l'arrivo di nuovi player. Deve rispettare logiche attuali (giocatori per lega o season?) e verifica di introdurlo ovunque è prevista la selezione/aggiunta di player. 
+ 
 
 
 

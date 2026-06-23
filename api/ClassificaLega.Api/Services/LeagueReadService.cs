@@ -26,7 +26,7 @@ public class LeagueReadService(AppDbContext db, LeagueContext league)
     public async Task<SeasonDto?> GetSeasonAsync()
     {
         var s = await CurrentSeasonAsync();
-        return s is null ? null : new SeasonDto(s.Id, s.Name, s.TotalStages, s.CountingStages, s.IsActive);
+        return s is null ? null : new SeasonDto(s.Id, s.Name, s.TotalStages, s.CountingStages, s.IsActive, s.ScoringRule);
     }
 
     // Tutte le stagioni della lega, più recenti prima (per il selettore).
@@ -36,7 +36,7 @@ public class LeagueReadService(AppDbContext db, LeagueContext league)
         return await db.Seasons.AsNoTracking()
             .Where(s => s.LeagueId == leagueId)
             .OrderByDescending(s => s.IsActive).ThenByDescending(s => s.CreatedAt).ThenByDescending(s => s.Id)
-            .Select(s => new SeasonDto(s.Id, s.Name, s.TotalStages, s.CountingStages, s.IsActive))
+            .Select(s => new SeasonDto(s.Id, s.Name, s.TotalStages, s.CountingStages, s.IsActive, s.ScoringRule))
             .ToListAsync();
     }
 
@@ -51,18 +51,36 @@ public class LeagueReadService(AppDbContext db, LeagueContext league)
             {
                 p.Id,
                 p.DisplayName,
-                Totals = p.Results.Select(r => r.TotalPoints).ToList(),
+                Tournaments = p.Results.Select(r => new
+                {
+                    r.StageId,
+                    r.Stage.Number,
+                    r.Stage.Name,
+                    r.Stage.Date,
+                    r.MatchPoints,
+                    r.Position,
+                }).ToList(),
             })
             .ToListAsync();
 
         var standings = ScoringService.ComputeStandings(
-            players.Select(p => new PlayerScoreData(p.Id, p.DisplayName, p.Totals)),
-            season.CountingStages);
+            players.Select(p => ToScoreData(p.Id, p.DisplayName,
+                p.Tournaments.Select(t => new TournamentScore(
+                    t.StageId, t.Name ?? $"Tappa {t.Number}", t.Date, t.Number, t.MatchPoints, t.Position)))),
+            season.ScoringRule, season.CountingStages);
 
-        return standings
-            .Select(s => new StandingRowDto(s.Position, s.PlayerId, s.DisplayName, s.BestN, s.AbsoluteTotal))
-            .ToList();
+        return standings.Select(ToStandingRowDto).ToList();
     }
+
+    private static PlayerScoreData ToScoreData(int id, string name, IEnumerable<TournamentScore> tournaments) =>
+        new(id, name, tournaments.ToList());
+
+    private static StandingRowDto ToStandingRowDto(StandingEntry s) =>
+        new(s.Rank, s.PlayerId, s.DisplayName, s.TotalPoints, s.AbsoluteTotal,
+            s.TournamentsPlayed, s.TournamentsCountedForTotal,
+            s.BestResults.Select(b => new TournamentBreakdownDto(
+                b.TournamentId, b.TournamentName, b.Date, b.MatchPoints,
+                b.PositionBonus, b.ScoreBonus, b.ParticipationPoints, b.Total)).ToList());
 
     // Giocatori della stagione corrente, filtrati e paginati (per il picker server-side).
     // Filtro su NormalizedKey (accent/case-insensitive, stessa logica del match import).
@@ -120,9 +138,14 @@ public class LeagueReadService(AppDbContext db, LeagueContext league)
                 r.Id,
                 r.PlayerId,
                 r.Player.DisplayName,
+                r.Wins,
+                r.Draws,
+                r.Losses,
+                r.Position,
                 r.MatchPoints,
-                r.BonusRisultato,
-                r.BonusPartecipazione,
+                r.ScoreBonus,
+                r.PositionBonus,
+                r.ParticipationPoints,
                 r.TotalPoints))
             .ToListAsync();
     }
@@ -166,13 +189,24 @@ public class LeagueReadService(AppDbContext db, LeagueContext league)
             {
                 p.Id,
                 p.DisplayName,
-                Cells = p.Results.Select(r => new { r.Stage.Number, r.TotalPoints }).ToList(),
+                Cells = p.Results.Select(r => new
+                {
+                    r.StageId,
+                    r.Stage.Number,
+                    r.Stage.Name,
+                    r.Stage.Date,
+                    r.MatchPoints,
+                    r.Position,
+                    r.TotalPoints,
+                }).ToList(),
             })
             .ToListAsync();
 
         var standings = ScoringService.ComputeStandings(
-            players.Select(p => new PlayerScoreData(p.Id, p.DisplayName, p.Cells.Select(c => c.TotalPoints).ToList())),
-            season.CountingStages);
+            players.Select(p => ToScoreData(p.Id, p.DisplayName,
+                p.Cells.Select(c => new TournamentScore(
+                    c.StageId, c.Name ?? $"Tappa {c.Number}", c.Date, c.Number, c.MatchPoints, c.Position)))),
+            season.ScoringRule, season.CountingStages);
 
         var stageNumbers = Enumerable.Range(1, season.TotalStages).ToList();
         var playerById = players.ToDictionary(p => p.Id);
@@ -183,7 +217,7 @@ public class LeagueReadService(AppDbContext db, LeagueContext league)
             var cells = stageNumbers
                 .Select(n => new MatrixCellDto(n, totalByNumber.TryGetValue(n, out var t) ? t : null))
                 .ToList();
-            return new MatrixRowDto(s.Position, s.PlayerId, s.DisplayName, cells, s.BestN, s.AbsoluteTotal);
+            return new MatrixRowDto(s.Rank, s.PlayerId, s.DisplayName, cells, s.TotalPoints, s.AbsoluteTotal);
         }).ToList();
 
         return new MatrixDto(season.TotalStages, season.CountingStages, stageNumbers, rows);

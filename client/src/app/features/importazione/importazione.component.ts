@@ -9,6 +9,7 @@ import { PlayerPickerComponent } from '../../core/player-picker.component';
 interface RowState {
   parsedName: string;          // nome letto dal PDF (colonna "Nome (PDF)")
   matchPoints: number;
+  position: number | null;     // piazzamento finale dal PDF (per il bonus piazzamento)
   // Giocatore di destinazione: esistente, nuovo (nome editabile) o nessuno (riga ignorata).
   selection: PlayerSelection;
 }
@@ -71,6 +72,7 @@ export class ImportazioneComponent {
         this.rows.set(p.rows.map((r) => ({
           parsedName: r.name,
           matchPoints: r.matchPoints,
+          position: r.position,
           selection: r.matchedPlayerId !== null
             ? { kind: 'existing', id: r.matchedPlayerId, displayName: r.matchedPlayerName ?? r.name }
             : { kind: 'new', name: r.name },
@@ -125,6 +127,7 @@ export class ImportazioneComponent {
           name: r.selection!.kind === 'new' ? r.selection!.name : r.selection!.displayName,
           matchPoints: r.matchPoints,
           playerId: r.selection!.kind === 'existing' ? r.selection!.id : null,
+          position: r.position,
         })),
     }).subscribe({
       next: (res) => {

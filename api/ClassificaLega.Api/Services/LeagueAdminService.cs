@@ -162,7 +162,8 @@ public partial class LeagueAdminService(AppDbContext db)
             throw ApiException.BadRequest("Password obbligatoria (min 6 caratteri).");
 
         var username = req.Username.Trim();
-        if (await db.Users.AnyAsync(u => u.LeagueId == leagueId && u.Username == username))
+        var usernameKey = username.ToLower();
+        if (await db.Users.AnyAsync(u => u.LeagueId == leagueId && u.Username.ToLower() == usernameKey))
             throw ApiException.Conflict($"Admin '{username}' già presente per questa lega.");
 
         var user = new User
@@ -188,7 +189,8 @@ public partial class LeagueAdminService(AppDbContext db)
             var username = req.Username.Trim();
             if (string.IsNullOrWhiteSpace(username))
                 throw ApiException.BadRequest("Username non può essere vuoto.");
-            if (await db.Users.AnyAsync(u => u.LeagueId == leagueId && u.Id != userId && u.Username == username))
+            var usernameKey = username.ToLower();
+            if (await db.Users.AnyAsync(u => u.LeagueId == leagueId && u.Id != userId && u.Username.ToLower() == usernameKey))
                 throw ApiException.Conflict($"Admin '{username}' già presente per questa lega.");
             user.Username = username;
         }

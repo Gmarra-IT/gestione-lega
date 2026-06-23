@@ -4,274 +4,296 @@ namespace ClassificaLega.Tests;
 
 public class ScoringServiceTests
 {
-    // --- BonusRisultato ---
+    private static readonly ScoringRule Default = ScoringRule.Default();
+
+    // Costruisce un giocatore da match points per tappa (null = assente). Position/date assenti →
+    // ordinamento cronologico = numero tappa.
+    private static PlayerScoreData Player(int id, string name, int?[] matchPointsPerStage) =>
+        new(id, name, matchPointsPerStage
+            .Select((mp, idx) => (mp, number: idx + 1))
+            .Where(x => x.mp.HasValue)
+            .Select(x => new TournamentScore(id * 100 + x.number, $"Tappa {x.number}", null, x.number, x.mp!.Value, null))
+            .ToList());
+
+    // --- matchPoints da W/D/L ---
 
     [Theory]
-    [InlineData(12, 8)]
-    [InlineData(10, 6)]
-    [InlineData(9,  4)]
-    [InlineData(8,  3)]
-    [InlineData(7,  2)]
-    [InlineData(6,  1)]
-    [InlineData(5,  0)]
-    [InlineData(3,  0)]
-    [InlineData(0,  0)]
-    public void BonusRisultato_ReturnsCorrectBonus(int matchPoints, int expected) =>
-        Assert.Equal(expected, ScoringService.BonusRisultato(matchPoints));
-
-    // --- BonusPartecipazione ---
-
-    [Theory]
-    [InlineData(0, 1)]  // 1ª partecipazione
-    [InlineData(1, 1)]
-    [InlineData(4, 1)]  // 5ª partecipazione (prev=4)
-    [InlineData(5, 2)]  // 6ª partecipazione (prev=5)
-    [InlineData(10, 2)]
-    public void BonusPartecipazione_Threshold(int previousParticipations, int expected) =>
-        Assert.Equal(expected, ScoringService.BonusPartecipazione(previousParticipations));
-
-    // --- ComputeTotalPoints ---
+    [InlineData(4, 0, 0, 12)]  // 4-0-0
+    [InlineData(3, 0, 1, 9)]   // 3-0-1
+    [InlineData(2, 2, 0, 8)]   // 2 win + 2 draw
+    [InlineData(0, 0, 4, 0)]
+    public void MatchPoints_FromWinsDrawsLosses(int w, int d, int l, int expected) =>
+        Assert.Equal(expected, ScoringService.MatchPoints(w, d, l, Default)); // 3/1/0
 
     [Fact]
-    public void TotalPoints_SumsThreeComponents()
+    public void MatchPoints_HonorsConfiguredPoints()
     {
-        // 4-0-0: matchPoints=12, bonusRisultato=8, bonusPartecipazione=1 → 21
-        var bp = ScoringService.BonusPartecipazione(0);
-        var br = ScoringService.BonusRisultato(12);
-        Assert.Equal(21, ScoringService.ComputeTotalPoints(12, br, bp));
+        var rule = new ScoringRule { PointsPerWin = 2, PointsPerDraw = 1, PointsPerLoss = 1 };
+        Assert.Equal(2 * 2 + 1 * 1 + 1 * 1, ScoringService.MatchPoints(2, 1, 1, rule)); // 6
+    }
+
+    // --- scoreBonus a soglia ---
+
+    [Theory]
+    [InlineData(9, 0)]    // sotto la soglia minima (10)
+    [InlineData(10, 5)]   // esattamente soglia inferiore
+    [InlineData(11, 5)]   // intermedio → soglia inferiore
+    [InlineData(12, 8)]   // soglia massima
+    [InlineData(100, 8)]  // oltre la massima → soglia massima
+    public void ScoreBonus_Threshold(int matchPoints, int expected)
+    {
+        // Esempio del brief che riversa il cablato: 10→+5, 12→+8.
+        var rule = new ScoringRule
+        {
+            ScoreBonuses =
+            [
+                new ScoreBonus { FromMatchPoints = 10, Points = 5 },
+                new ScoreBonus { FromMatchPoints = 12, Points = 8 },
+            ],
+        };
+        Assert.Equal(expected, ScoringService.ScoreBonusFor(matchPoints, rule));
     }
 
     [Fact]
-    public void TotalPoints_MichelePardiniTappa1()
+    public void ScoreBonus_NoBonusesConfigured_IsZero() =>
+        Assert.Equal(0, ScoringService.ScoreBonusFor(50, new ScoringRule()));
+
+    // --- participationPoints per indice progressivo ---
+
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(5, 1)]
+    [InlineData(6, 2)]   // dalla 6ª
+    [InlineData(20, 2)]
+    public void ParticipationPoints_ByProgressiveIndex(int index, int expected) =>
+        Assert.Equal(expected, ScoringService.ParticipationPointsFor(index, Default));
+
+    [Fact]
+    public void ParticipationPoints_BelowFirstTier_IsZero()
     {
-        // matchPoints=12, BonusRisultato=8, BonusPartecipazione=1 (prima tappa) → 21
-        var br = ScoringService.BonusRisultato(12);
-        var bp = ScoringService.BonusPartecipazione(0);
-        Assert.Equal(21, ScoringService.ComputeTotalPoints(12, br, bp));
+        var rule = new ScoringRule
+        {
+            ParticipationTiers = [new ParticipationTier { FromTournament = 3, PointsPerParticipation = 1 }],
+        };
+        Assert.Equal(0, ScoringService.ParticipationPointsFor(2, rule));
+        Assert.Equal(1, ScoringService.ParticipationPointsFor(3, rule));
+    }
+
+    // --- positionBonus ---
+
+    [Fact]
+    public void PositionBonus_MappedAndUnmapped()
+    {
+        var rule = new ScoringRule
+        {
+            PositionBonuses =
+            [
+                new PositionBonus { Position = 1, Points = 10 },
+                new PositionBonus { Position = 2, Points = 6 },
+            ],
+        };
+        Assert.Equal(10, ScoringService.PositionBonusFor(1, rule));
+        Assert.Equal(6, ScoringService.PositionBonusFor(2, rule));
+        Assert.Equal(0, ScoringService.PositionBonusFor(5, rule)); // non mappata
+        Assert.Equal(0, ScoringService.PositionBonusFor(null, rule)); // assente
     }
 
     // --- BestN ---
 
     [Fact]
-    public void BestN_MoreThanN_TakesTopN()
+    public void BestN_TakesTopN()
     {
-        var totals = new[] { 10, 20, 15, 5, 18, 12, 8, 25, 3, 17 };
-        // top 8: 25,20,18,17,15,12,10,8 = 125
-        Assert.Equal(125, ScoringService.BestN(totals, 8));
+        var totals = new[] { 10, 20, 15, 5, 18 };
+        Assert.Equal(20 + 18 + 15, ScoringService.BestN(totals, 3));
     }
 
     [Fact]
-    public void BestN_LessThanN_SumsAll()
+    public void BestN_FewerThanN_SumsAll()
     {
         var totals = new[] { 10, 20, 15 };
         Assert.Equal(45, ScoringService.BestN(totals, 8));
     }
 
+    // --- ComputeBreakdowns: somma componenti == total ---
+
     [Fact]
-    public void BestN_ExactlyN_SumsAll()
+    public void Breakdowns_ComponentsSumToTotal()
     {
-        var totals = new[] { 10, 20, 15, 5, 18, 12, 8, 25 };
-        Assert.Equal(113, ScoringService.BestN(totals, 8));
+        var player = Player(1, "Tizio", [9, 3, 7, 10, 9, 9, 9]);
+        var breakdowns = ScoringService.ComputeBreakdowns(player.Tournaments, Default);
+        Assert.NotEmpty(breakdowns);
+        foreach (var b in breakdowns)
+            Assert.Equal(b.MatchPoints + b.PositionBonus + b.ScoreBonus + b.ParticipationPoints, b.Total);
     }
 
     [Fact]
-    public void BestN_N1_ReturnsMax()
+    public void Breakdowns_ParticipationByChronologicalOrder()
     {
-        var totals = new[] { 10, 20, 15 };
-        Assert.Equal(20, ScoringService.BestN(totals, 1));
+        // mp identici: cambia solo la fascia presenza per indice. Tappa 6 e 7 → +2.
+        var player = Player(1, "Tizio", [9, 9, 9, 9, 9, 9, 9]);
+        var breakdowns = ScoringService.ComputeBreakdowns(player.Tournaments, Default)
+            .OrderBy(b => b.TournamentId).ToList(); // id = 100+number → ordine tappa
+        for (int i = 0; i < 5; i++)
+            Assert.Equal(1, breakdowns[i].ParticipationPoints);
+        Assert.Equal(2, breakdowns[5].ParticipationPoints);
+        Assert.Equal(2, breakdowns[6].ParticipationPoints);
     }
 
-    // --- RecomputePartecipazione ---
+    // --- ComputeStandings: best N, ordinamento, tie-break, rank ---
 
     [Fact]
-    public void RecomputePartecipazione_OrdersByStageNumber()
+    public void Standings_CountBestN_LimitsCountedTournaments()
     {
-        // stages in reverse order — should still assign bonus by position
-        var stages = new[]
-        {
-            (stageId: 3, stageNumber: 3),
-            (stageId: 1, stageNumber: 1),
-            (stageId: 2, stageNumber: 2),
-        };
-        var result = ScoringService.RecomputePartecipazione(stages);
-        Assert.Equal(1, result[1]); // stageNumber=1 → prev=0 → 1
-        Assert.Equal(1, result[2]); // stageNumber=2 → prev=1 → 1
-        Assert.Equal(1, result[3]); // stageNumber=3 → prev=2 → 1
-    }
+        // Regola "piatta" (nessun bonus) → total == matchPoints.
+        var flat = new ScoringRule();
+        var player = new PlayerScoreData(1, "A",
+        [
+            new TournamentScore(1, "t1", null, 1, 25, null),
+            new TournamentScore(2, "t2", null, 2, 5, null),
+            new TournamentScore(3, "t3", null, 3, 5, null),
+        ]);
 
-    [Fact]
-    public void RecomputePartecipazione_SixthStageGetsBonus2()
-    {
-        var stages = Enumerable.Range(1, 7)
-            .Select(n => (stageId: n, stageNumber: n))
-            .ToArray();
-        var result = ScoringService.RecomputePartecipazione(stages);
-        // stages 1-5 → prev 0-4 → bonus 1; stages 6-7 → prev 5-6 → bonus 2
-        for (int id = 1; id <= 5; id++)
-            Assert.Equal(1, result[id]);
-        Assert.Equal(2, result[6]);
-        Assert.Equal(2, result[7]);
-    }
+        var best1 = ScoringService.ComputeStandings([player], flat, 1)[0];
+        Assert.Equal(25, best1.TotalPoints);
+        Assert.Equal(1, best1.TournamentsCountedForTotal);
+        Assert.Equal(3, best1.TournamentsPlayed);
 
-    // --- ComputeStandings ---
-
-    [Fact]
-    public void Standings_OrdersByBestNDesc()
-    {
-        var players = new[]
-        {
-            new PlayerScoreData(1, "Alice", [10, 20]),
-            new PlayerScoreData(2, "Bob",   [15, 15]),
-        };
-        var standings = ScoringService.ComputeStandings(players, 8);
-        // Alice BestN=30, Bob BestN=30 — tie → absolute same → name asc → Alice first
-        Assert.Equal("Alice", standings[0].DisplayName);
-        Assert.Equal("Bob", standings[1].DisplayName);
+        var all = ScoringService.ComputeStandings([player], flat, 8)[0];
+        Assert.Equal(35, all.TotalPoints);
+        Assert.Equal(3, all.TournamentsCountedForTotal);
     }
 
     [Fact]
-    public void Standings_TiebreakerAbsoluteTotal()
+    public void Standings_OrdersByTotalThenAbsoluteThenName()
     {
-        var players = new[]
-        {
-            new PlayerScoreData(1, "Alice", [20, 10, 5]),  // BestN(2)=30, abs=35
-            new PlayerScoreData(2, "Bob",   [20, 10, 8]),  // BestN(2)=30, abs=38
-        };
-        var standings = ScoringService.ComputeStandings(players, 2);
-        Assert.Equal("Bob", standings[0].DisplayName);
+        var flat = new ScoringRule();
+        var alice = new PlayerScoreData(1, "Alice",
+            [new TournamentScore(1, "t", null, 1, 20, null), new TournamentScore(2, "t", null, 2, 10, null), new TournamentScore(3, "t", null, 3, 5, null)]); // best2=30 abs35
+        var bob = new PlayerScoreData(2, "Bob",
+            [new TournamentScore(4, "t", null, 1, 20, null), new TournamentScore(5, "t", null, 2, 10, null), new TournamentScore(6, "t", null, 3, 8, null)]); // best2=30 abs38
+
+        var standings = ScoringService.ComputeStandings([alice, bob], flat, 2);
+        Assert.Equal("Bob", standings[0].DisplayName);   // abs desc
         Assert.Equal("Alice", standings[1].DisplayName);
     }
 
     [Fact]
-    public void Standings_TiebreakerNameAsc()
+    public void Standings_TiedPlayersShareRank_NameTiebreak()
     {
-        var players = new[]
-        {
-            new PlayerScoreData(1, "Zara", [20]),
-            new PlayerScoreData(2, "Anna", [20]),
-        };
-        var standings = ScoringService.ComputeStandings(players, 8);
+        var flat = new ScoringRule();
+        var anna = new PlayerScoreData(1, "Anna", [new TournamentScore(1, "t", null, 1, 20, null)]);
+        var zara = new PlayerScoreData(2, "Zara", [new TournamentScore(2, "t", null, 1, 20, null)]);
+        var carl = new PlayerScoreData(3, "Carl", [new TournamentScore(3, "t", null, 1, 10, null)]);
+
+        var standings = ScoringService.ComputeStandings([zara, carl, anna], flat, 8);
         Assert.Equal("Anna", standings[0].DisplayName);
+        Assert.Equal(1, standings[0].Rank);
         Assert.Equal("Zara", standings[1].DisplayName);
+        Assert.Equal(1, standings[1].Rank); // pari merito
+        Assert.Equal("Carl", standings[2].DisplayName);
+        Assert.Equal(3, standings[2].Rank);
     }
 
-    [Fact]
-    public void Standings_TiedPlayersSharePosition()
-    {
-        var players = new[]
-        {
-            new PlayerScoreData(1, "Anna", [20]),
-            new PlayerScoreData(2, "Zara", [20]),
-            new PlayerScoreData(3, "Carl", [10]),
-        };
-        var standings = ScoringService.ComputeStandings(players, 8);
-        Assert.Equal(1, standings[0].Position);
-        Assert.Equal(1, standings[1].Position);
-        Assert.Equal(3, standings[2].Position);
-    }
-
-    [Fact]
-    public void Standings_MarracciniFirst_BestN89()
-    {
-        // Minimal fixture: Marraccini has 7 tappe totalling BestN=89 with CountingStages=8
-        // (fewer than 8 stages → sum all)
-        var marracciniTotals = new[] { 14, 14, 13, 13, 12, 12, 11 }; // sum=89
-        var otherTotals = new[] { 12, 12, 12, 12, 12, 11, 10 };      // sum=81
-
-        var players = new[]
-        {
-            new PlayerScoreData(1, "Marraccini", marracciniTotals),
-            new PlayerScoreData(2, "OtherPlayer", otherTotals),
-        };
-        var standings = ScoringService.ComputeStandings(players, 8);
-        Assert.Equal(1, standings[0].Position);
-        Assert.Equal("Marraccini", standings[0].DisplayName);
-        Assert.Equal(89, standings[0].BestN);
-    }
-
-    // --- Real workbook data (foglio Tappe, 22 giocatori × 7 tappe) ---
-    // Per-tappa totals straight from the workbook; verifies ComputeStandings reproduces
-    // the Classifica sheet.
-    private static readonly (string Name, int[] Totals)[] WorkbookTotals =
+    // --- Dati reali workbook (matchPoints per tappa) con la ScoringRule di default ---
+    // Verifica che la pipeline (soglie + fasce + best N) riproduca la Classifica storica.
+    private static readonly (string Name, int?[] MatchPoints)[] Workbook =
     [
-        ("Bruno Barbieri",          [14, 8, 14, 8]),
-        ("Daniel Gemignani",        [4, 8, 4]),
-        ("Daniele Gambini",         [14]),
-        ("Dario Tommasi",           [8, 14, 8, 8]),
-        ("Gabriele Marraccini",     [14, 4, 10, 17, 14, 15, 15]),
-        ("Gianmarco Bina",          [5]),
-        ("Gianmarco Del Bucchia",   [10, 1, 21, 8, 8, 15, 6]),
-        ("Gianmarco Venturini",     [4]),
-        ("Gianmarco Volpe",         [8, 8, 4, 5]),
-        ("Gioca Turo",              [21]),
-        ("Giulio Bertozzi",         [1, 1]),
-        ("Igor Fustini",            [14, 5, 8, 14, 8, 5]),
-        ("Jhonathan Lipparelli",    [5, 8]),
-        ("Leonardo Guerra Silicani",[14]),
-        ("Massimiliano Lombardi",   [2]),
-        ("Michele Pardini",         [8, 8, 8]),
-        ("Nicola Dalle Mura",       [8, 14, 4, 21, 8, 15]),
-        ("Nicola Pardini",          [4, 4, 14, 14, 8]),
-        ("Paolo Baroni",            [8, 8, 10, 5, 8, 15, 9]),
-        ("Roberto Randazzo",        [8, 8, 4, 4, 1]),
-        ("Stefano Ghiara",          [10]),
-        ("Tommaso Duccini",         [8, 14]),
+        ("Bruno Barbieri",          [null,  9,  6,  9,  6, null, null]),
+        ("Daniel Gemignani",        [null, null,  3, null, null,  6,  3]),
+        ("Daniele Gambini",         [null,  9, null, null, null, null, null]),
+        ("Dario Tommasi",           [null,  6,  9,  6, null, null,  6]),
+        ("Gabriele Marraccini",     [ 9,  3,  7, 10,  9,  9,  9]),
+        ("Gianmarco Bina",          [null,  4, null, null, null, null, null]),
+        ("Gianmarco Del Bucchia",   [ 7,  0, 12,  6,  6,  9,  4]),
+        ("Gianmarco Venturini",     [null, null,  3, null, null, null, null]),
+        ("Gianmarco Volpe",         [null, null,  6,  6,  3,  4, null]),
+        ("Gioca Turo",              [null, 12, null, null, null, null, null]),
+        ("Giulio Bertozzi",         [ 0, null,  0, null, null, null, null]),
+        ("Igor Fustini",            [ 9,  4,  6,  9,  6,  3, null]),
+        ("Jhonathan Lipparelli",    [ 4,  6, null, null, null, null, null]),
+        ("Leonardo Guerra Silicani",[null,  9, null, null, null, null, null]),
+        ("Massimiliano Lombardi",   [null, null, null, null, null,  1, null]),
+        ("Michele Pardini",         [null, null,  6,  6,  6, null, null]),
+        ("Nicola Dalle Mura",       [null,  6,  9,  3, 12,  6,  9]),
+        ("Nicola Pardini",          [null,  3,  3,  9, null,  9,  6]),
+        ("Paolo Baroni",            [ 6,  6,  7,  4,  6,  9,  6]),
+        ("Roberto Randazzo",        [null,  6,  6,  3,  3, null,  0]),
+        ("Stefano Ghiara",          [null, null, null, null, null, null,  7]),
+        ("Tommaso Duccini",         [null, null, null, null, null,  6,  9]),
     ];
 
     [Fact]
     public void Standings_RealWorkbookData_ReproducesClassifica()
     {
-        var players = WorkbookTotals
-            .Select((p, i) => new PlayerScoreData(i + 1, p.Name, p.Totals))
-            .ToList();
-        var standings = ScoringService.ComputeStandings(players, countingStages: 8);
+        var players = Workbook.Select((p, i) => Player(i + 1, p.Name, p.MatchPoints)).ToList();
+        var standings = ScoringService.ComputeStandings(players, Default, countBestN: 8);
 
         Assert.Equal("Gabriele Marraccini", standings[0].DisplayName);
-        Assert.Equal(89, standings[0].BestN);
-        Assert.Equal(1, standings[0].Position);
+        Assert.Equal(89, standings[0].TotalPoints);
+        Assert.Equal(1, standings[0].Rank);
 
         Assert.Equal("Nicola Dalle Mura", standings[1].DisplayName);
-        Assert.Equal(70, standings[1].BestN);
+        Assert.Equal(70, standings[1].TotalPoints);
 
         Assert.Equal("Gianmarco Del Bucchia", standings[2].DisplayName);
-        Assert.Equal(69, standings[2].BestN);
+        Assert.Equal(69, standings[2].TotalPoints);
 
         Assert.Equal("Paolo Baroni", standings[3].DisplayName);
-        Assert.Equal(63, standings[3].BestN);
+        Assert.Equal(63, standings[3].TotalPoints);
 
         Assert.Equal("Igor Fustini", standings[4].DisplayName);
-        Assert.Equal(54, standings[4].BestN);
+        Assert.Equal(54, standings[4].TotalPoints);
     }
 
     [Fact]
-    public void Standings_RealData_CountingStagesShrinksToTop3()
+    public void Standings_RealData_CountBestN3_ReordersTop()
     {
-        var players = WorkbookTotals
-            .Select((p, i) => new PlayerScoreData(i + 1, p.Name, p.Totals))
-            .ToList();
-        // With only top-3 stages counting the ranking shifts: Nicola Dalle Mura best3 =
-        // 21+15+14 = 50 overtakes Marraccini best3 = 17+15+15 = 47.
-        var standings = ScoringService.ComputeStandings(players, countingStages: 3);
+        var players = Workbook.Select((p, i) => Player(i + 1, p.Name, p.MatchPoints)).ToList();
+        var standings = ScoringService.ComputeStandings(players, Default, countBestN: 3);
+        // Nicola Dalle Mura best3 = 21+15+14 = 50 supera Marraccini best3 = 17+15+15 = 47.
         Assert.Equal("Nicola Dalle Mura", standings[0].DisplayName);
-        Assert.Equal(50, standings[0].BestN);
+        Assert.Equal(50, standings[0].TotalPoints);
         Assert.Equal("Gabriele Marraccini", standings[1].DisplayName);
-        Assert.Equal(47, standings[1].BestN);
+        Assert.Equal(47, standings[1].TotalPoints);
+    }
+
+    // --- Validazione ScoringRule ---
+
+    [Fact]
+    public void Validate_Default_IsValid() => Assert.Null(Default.Validate());
+
+    [Theory]
+    [InlineData(-1, 0, 0)]
+    [InlineData(0, -1, 0)]
+    [InlineData(0, 0, -1)]
+    public void Validate_NegativePoints_Fails(int w, int d, int l) =>
+        Assert.NotNull(new ScoringRule { PointsPerWin = w, PointsPerDraw = d, PointsPerLoss = l }.Validate());
+
+    [Fact]
+    public void Validate_ScoreBonusesUnordered_Fails()
+    {
+        var rule = new ScoringRule
+        {
+            ScoreBonuses =
+            [
+                new ScoreBonus { FromMatchPoints = 10, Points = 5 },
+                new ScoreBonus { FromMatchPoints = 6, Points = 1 },
+            ],
+        };
+        Assert.NotNull(rule.Validate());
     }
 
     [Fact]
-    public void Standings_CountingStagesChange_ReordersRanking()
+    public void Validate_DuplicatePosition_Fails()
     {
-        // Player A: high consistency; Player B: one big score
-        var playerA = new PlayerScoreData(1, "A", [10, 10, 10, 10]);
-        var playerB = new PlayerScoreData(2, "B", [25, 5, 5, 5]);
-
-        // CountingStages=1 → B wins (25 vs 10)
-        var s1 = ScoringService.ComputeStandings([playerA, playerB], 1);
-        Assert.Equal("B", s1[0].DisplayName);
-
-        // CountingStages=4 → A wins (40 vs 40 abs tie — same here; use name tiebreak A < B)
-        // actually: A=40, B=40 → abs tie → name → A
-        var s4 = ScoringService.ComputeStandings([playerA, playerB], 4);
-        Assert.Equal("A", s4[0].DisplayName);
+        var rule = new ScoringRule
+        {
+            PositionBonuses =
+            [
+                new PositionBonus { Position = 1, Points = 10 },
+                new PositionBonus { Position = 1, Points = 6 },
+            ],
+        };
+        Assert.NotNull(rule.Validate());
     }
 }

@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
 import { LeagueContextService } from '../../core/league-context.service';
 import { compressImage } from '../../core/image-compress';
-import { Season } from '../../core/models';
+import { ParticipationTier, PositionBonus, ScoreBonus, Season } from '../../core/models';
 
 @Component({
   selector: 'app-impostazioni',
@@ -21,6 +21,17 @@ export class ImpostazioniComponent {
   busy = signal(false);
   error = signal<string | null>(null);
   ok = signal<string | null>(null);
+
+  // --- regola di scoring ---
+  pointsPerWin = signal(3);
+  pointsPerDraw = signal(1);
+  pointsPerLoss = signal(0);
+  scoreBonuses = signal<ScoreBonus[]>([]);
+  positionBonuses = signal<PositionBonus[]>([]);
+  participationTiers = signal<ParticipationTier[]>([]);
+  ruleBusy = signal(false);
+  ruleError = signal<string | null>(null);
+  ruleOk = signal<string | null>(null);
 
   // --- nuova stagione ---
   newSeasonName = signal('');
@@ -47,6 +58,7 @@ export class ImpostazioniComponent {
         this.season.set(s);
         this.totalStages.set(s.totalStages);
         this.countingStages.set(s.countingStages);
+        this.loadRule(s);
       });
     });
   }
@@ -120,6 +132,75 @@ export class ImpostazioniComponent {
     this.ctx.loadLeagues();
     this.ctx.bumpLogoVersion();
     this.logoBusy.set(false);
+  }
+
+  // --- regola di scoring ---
+  private loadRule(s: Season): void {
+    const r = s.scoringRule;
+    this.pointsPerWin.set(r.pointsPerWin);
+    this.pointsPerDraw.set(r.pointsPerDraw);
+    this.pointsPerLoss.set(r.pointsPerLoss);
+    // copie modificabili (no mutazione del DTO della season)
+    this.scoreBonuses.set(r.scoreBonuses.map((b) => ({ ...b })));
+    this.positionBonuses.set(r.positionBonuses.map((b) => ({ ...b })));
+    this.participationTiers.set(r.participationTiers.map((t) => ({ ...t })));
+  }
+
+  addScoreBonus(): void {
+    this.scoreBonuses.update((l) => [...l, { fromMatchPoints: 0, points: 0 }]);
+  }
+  removeScoreBonus(i: number): void {
+    this.scoreBonuses.update((l) => l.filter((_, j) => j !== i));
+  }
+  setScoreBonus(i: number, field: keyof ScoreBonus, value: number): void {
+    this.scoreBonuses.update((l) => l.map((b, j) => (j === i ? { ...b, [field]: value } : b)));
+  }
+
+  addPositionBonus(): void {
+    this.positionBonuses.update((l) => [...l, { position: l.length + 1, points: 0 }]);
+  }
+  removePositionBonus(i: number): void {
+    this.positionBonuses.update((l) => l.filter((_, j) => j !== i));
+  }
+  setPositionBonus(i: number, field: keyof PositionBonus, value: number): void {
+    this.positionBonuses.update((l) => l.map((b, j) => (j === i ? { ...b, [field]: value } : b)));
+  }
+
+  addParticipationTier(): void {
+    this.participationTiers.update((l) => [...l, { fromTournament: 1, pointsPerParticipation: 0 }]);
+  }
+  removeParticipationTier(i: number): void {
+    this.participationTiers.update((l) => l.filter((_, j) => j !== i));
+  }
+  setParticipationTier(i: number, field: keyof ParticipationTier, value: number): void {
+    this.participationTiers.update((l) => l.map((t, j) => (j === i ? { ...t, [field]: value } : t)));
+  }
+
+  saveRule(): void {
+    this.ruleError.set(null);
+    this.ruleOk.set(null);
+    this.ruleBusy.set(true);
+    // ordino le liste a soglia crescente per comodità (il server lo richiede).
+    const scoringRule = {
+      pointsPerWin: this.pointsPerWin(),
+      pointsPerDraw: this.pointsPerDraw(),
+      pointsPerLoss: this.pointsPerLoss(),
+      positionBonuses: [...this.positionBonuses()].sort((a, b) => a.position - b.position),
+      scoreBonuses: [...this.scoreBonuses()].sort((a, b) => a.fromMatchPoints - b.fromMatchPoints),
+      participationTiers: [...this.participationTiers()].sort((a, b) => a.fromTournament - b.fromTournament),
+    };
+    this.api.updateScoringRule({ scoringRule }).subscribe({
+      next: (s) => {
+        this.season.set(s);
+        this.loadRule(s);
+        this.ruleOk.set('Regola di scoring salvata. Classifica ricalcolata.');
+        this.ruleBusy.set(false);
+      },
+      error: (err) => {
+        this.ruleError.set(err.error?.error ?? 'Errore nel salvataggio della regola.');
+        this.ruleBusy.set(false);
+      },
+    });
   }
 
   save(): void {

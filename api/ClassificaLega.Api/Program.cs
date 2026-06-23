@@ -177,6 +177,10 @@ var admin = api.MapGroup("").RequireAuthorization().AddEndpointFilter(async (ctx
 admin.MapPut("/season", async (UpdateSeasonRequest req, LeagueWriteService svc) =>
     Results.Ok(await svc.UpdateSeasonAsync(req)));
 
+// Sostituisce la regola di scoring della stagione corrente e ricalcola i risultati.
+admin.MapPut("/season/scoring-rule", async (UpdateScoringRuleRequest req, LeagueWriteService svc) =>
+    Results.Ok(await svc.UpdateScoringRuleAsync(req)));
+
 // Crea una nuova stagione (diventa attiva, archivia la precedente).
 admin.MapPost("/seasons", async (CreateSeasonRequest req, LeagueWriteService svc) =>
     Results.Ok(await svc.CreateSeasonAsync(req)));

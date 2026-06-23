@@ -68,6 +68,23 @@
   color: #fff;
 }
 
+.wdl {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
+}
+
+.wdl label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+@media (max-width: 420px) {
+  .wdl {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 .preview {
   display: flex;
   flex-wrap: wrap;

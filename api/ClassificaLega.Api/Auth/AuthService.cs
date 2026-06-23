@@ -17,8 +17,9 @@ public class AuthService(AppDbContext db, IOptions<JwtOptions> jwt, LeagueContex
 
     public async Task<LoginResponse?> LoginAsync(LoginRequest req)
     {
+        var username = req.Username.ToLower();
         var candidates = await db.Users.AsNoTracking()
-            .Where(u => u.Username == req.Username)
+            .Where(u => u.Username.ToLower() == username)
             .ToListAsync();
         if (candidates.Count == 0) return null;
 

@@ -28,6 +28,101 @@
   <p class="muted">Caricamento…</p>
 }
 
+@if (season(); as s) {
+  <h2 class="logo-title">Regola di scoring</h2>
+  <form class="card settings rule-form" (ngSubmit)="saveRule()">
+    <p class="hint">Punteggio torneo = punti match + bonus soglia + bonus piazzamento + bonus partecipazione.
+      Salvando si ricalcola l'intera classifica della stagione.</p>
+
+    <div class="points-row">
+      <div>
+        <label for="ppw">Punti vittoria</label>
+        <input id="ppw" type="number" min="0" name="ppw"
+               [ngModel]="pointsPerWin()" (ngModelChange)="pointsPerWin.set(+$event)" />
+      </div>
+      <div>
+        <label for="ppd">Punti pareggio</label>
+        <input id="ppd" type="number" min="0" name="ppd"
+               [ngModel]="pointsPerDraw()" (ngModelChange)="pointsPerDraw.set(+$event)" />
+      </div>
+      <div>
+        <label for="ppl">Punti sconfitta</label>
+        <input id="ppl" type="number" min="0" name="ppl"
+               [ngModel]="pointsPerLoss()" (ngModelChange)="pointsPerLoss.set(+$event)" />
+      </div>
+    </div>
+
+    <div class="rule-list">
+      <div class="rule-list-head">
+        <h3>Bonus a soglia (sui punti match)</h3>
+        <button type="button" class="btn ghost small" (click)="addScoreBonus()">+ Aggiungi</button>
+      </div>
+      <p class="hint">Si applica la voce con «da punti» più alta ≤ punti match del torneo.</p>
+      @for (b of scoreBonuses(); track $index) {
+        <div class="rule-row">
+          <span>da punti</span>
+          <input type="number" min="0" [ngModelOptions]="{ standalone: true }"
+                 [ngModel]="b.fromMatchPoints" (ngModelChange)="setScoreBonus($index, 'fromMatchPoints', +$event)" />
+          <span>→ bonus</span>
+          <input type="number" [ngModelOptions]="{ standalone: true }"
+                 [ngModel]="b.points" (ngModelChange)="setScoreBonus($index, 'points', +$event)" />
+          <button type="button" class="del" title="Rimuovi" (click)="removeScoreBonus($index)">✕</button>
+        </div>
+      } @empty {
+        <p class="hint muted">Nessun bonus soglia.</p>
+      }
+    </div>
+
+    <div class="rule-list">
+      <div class="rule-list-head">
+        <h3>Bonus piazzamento</h3>
+        <button type="button" class="btn ghost small" (click)="addPositionBonus()">+ Aggiungi</button>
+      </div>
+      @for (b of positionBonuses(); track $index) {
+        <div class="rule-row">
+          <span>posizione</span>
+          <input type="number" min="1" [ngModelOptions]="{ standalone: true }"
+                 [ngModel]="b.position" (ngModelChange)="setPositionBonus($index, 'position', +$event)" />
+          <span>→ bonus</span>
+          <input type="number" [ngModelOptions]="{ standalone: true }"
+                 [ngModel]="b.points" (ngModelChange)="setPositionBonus($index, 'points', +$event)" />
+          <button type="button" class="del" title="Rimuovi" (click)="removePositionBonus($index)">✕</button>
+        </div>
+      } @empty {
+        <p class="hint muted">Nessun bonus piazzamento.</p>
+      }
+    </div>
+
+    <div class="rule-list">
+      <div class="rule-list-head">
+        <h3>Fasce di partecipazione</h3>
+        <button type="button" class="btn ghost small" (click)="addParticipationTier()">+ Aggiungi</button>
+      </div>
+      <p class="hint">Si applica la fascia con «dalla presenza» più alta ≤ numero progressivo di partecipazione.</p>
+      @for (t of participationTiers(); track $index) {
+        <div class="rule-row">
+          <span>dalla presenza</span>
+          <input type="number" min="1" [ngModelOptions]="{ standalone: true }"
+                 [ngModel]="t.fromTournament" (ngModelChange)="setParticipationTier($index, 'fromTournament', +$event)" />
+          <span>→ punti</span>
+          <input type="number" [ngModelOptions]="{ standalone: true }"
+                 [ngModel]="t.pointsPerParticipation" (ngModelChange)="setParticipationTier($index, 'pointsPerParticipation', +$event)" />
+          <button type="button" class="del" title="Rimuovi" (click)="removeParticipationTier($index)">✕</button>
+        </div>
+      } @empty {
+        <p class="hint muted">Nessuna fascia.</p>
+      }
+    </div>
+
+    @if (ruleError()) { <div class="msg error">{{ ruleError() }}</div> }
+    @if (ruleOk()) { <div class="msg ok">{{ ruleOk() }}</div> }
+
+    <button class="btn" type="submit" [disabled]="ruleBusy()">
+      {{ ruleBusy() ? 'Salvataggio…' : 'Salva regola' }}
+    </button>
+  </form>
+}
+
 <h2 class="logo-title">Nuova stagione</h2>
 <form class="card settings" (ngSubmit)="createSeason()">
   <p class="hint">Crea una nuova stagione: diventa quella attiva e archivia la precedente (resta consultabile dal selettore). Parte senza giocatori né tappe.</p>

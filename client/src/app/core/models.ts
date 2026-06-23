@@ -36,20 +36,49 @@ export interface UpdateLeagueAdminRequest {
   password?: string | null;
 }
 
+// --- scoring rule (config) ---
+export interface PositionBonus { position: number; points: number; }
+export interface ScoreBonus { fromMatchPoints: number; points: number; }
+export interface ParticipationTier { fromTournament: number; pointsPerParticipation: number; }
+
+export interface ScoringRule {
+  pointsPerWin: number;
+  pointsPerDraw: number;
+  pointsPerLoss: number;
+  positionBonuses: PositionBonus[];
+  scoreBonuses: ScoreBonus[];
+  participationTiers: ParticipationTier[];
+}
+
 export interface Season {
   id: number;
   name: string;
   totalStages: number;
   countingStages: number;
   isActive: boolean;
+  scoringRule: ScoringRule;
+}
+
+export interface TournamentBreakdown {
+  tournamentId: number;
+  tournamentName: string;
+  date: string | null;
+  matchPoints: number;
+  positionBonus: number;
+  scoreBonus: number;
+  participationPoints: number;
+  total: number;
 }
 
 export interface StandingRow {
-  position: number;
+  rank: number;
   playerId: number;
   displayName: string;
-  bestN: number;
-  totalPoints: number;
+  totalPoints: number;          // somma dei tornei contati (best N)
+  absoluteTotal: number;        // somma di tutti i tornei
+  tournamentsPlayed: number;
+  tournamentsCountedForTotal: number;
+  bestResults: TournamentBreakdown[];
 }
 
 export interface PlayerLite {
@@ -81,9 +110,14 @@ export interface StageResult {
   id: number;
   playerId: number;
   displayName: string;
+  wins: number | null;
+  draws: number | null;
+  losses: number | null;
+  position: number | null;
   matchPoints: number;
-  bonusRisultato: number;
-  bonusPartecipazione: number;
+  scoreBonus: number;
+  positionBonus: number;
+  participationPoints: number;
   totalPoints: number;
 }
 
@@ -105,12 +139,12 @@ export interface MatrixCell {
 }
 
 export interface MatrixRow {
-  position: number;
+  rank: number;
   playerId: number;
   displayName: string;
   cells: MatrixCell[];
-  bestN: number;
   totalPoints: number;
+  absoluteTotal: number;
 }
 
 export interface Matrix {
@@ -147,7 +181,16 @@ export interface UpsertResultRequest {
   stageNumber: number;
   playerId: number | null;
   newPlayerName: string | null;
-  matchPoints: number;
+  // Se wins/draws/losses valorizzati → matchPoints derivato lato server; altrimenti matchPoints diretto.
+  matchPoints?: number | null;
+  wins?: number | null;
+  draws?: number | null;
+  losses?: number | null;
+  position?: number | null;
+}
+
+export interface UpdateScoringRuleRequest {
+  scoringRule: ScoringRule;
 }
 
 export interface UpsertStageRequest {
@@ -182,6 +225,7 @@ export interface ImportCommitRow {
   name: string;
   matchPoints: number;
   playerId: number | null;
+  position: number | null;
 }
 
 export interface ImportCommitRequest {

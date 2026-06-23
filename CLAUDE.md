@@ -43,7 +43,9 @@ client/
 
 ## Modello dominio
 
-Gerarchia: **League → Seasons → (Players, Stages) → Results**. `Result` = (Stage × Player) punteggi.
+Gerarchia: **League → Seasons → (Players, Stages) → Results**. `Result` = (Stage × Player) punteggi;
+campi input `Wins?/Draws?/Losses?/Position?` + `MatchPoints`, componenti calcolati
+`ScoreBonus/PositionBonus/ParticipationPoints/TotalPoints`.
 
 - **League** = tenant. `Slug` (url, lowercase), `Name`, `Title?` (branding), `IsActive`.
 - **LeagueLogo** = logo lega, blob su DB. **Tabella separata** (PK=`LeagueId`, 1-1, cascade) così i
@@ -57,10 +59,23 @@ Gerarchia: **League → Seasons → (Players, Stages) → Results**. `Result` = 
   `PasswordHash` BCrypt. Vedi `UserRoles`.
 - **Tenancy**: middleware legge header `X-League-Slug` → risolve lega attiva → `LeagueContext.Current`
   (scoped). Read/Write/Import services pivotano su `RequireLeagueId()` + Season attiva di quella lega.
-- **Scoring** (`ScoringService`): `TotalPoints = MatchPoints + BonusRisultato + BonusPartecipazione`.
-  Bonus partecipazione dipende da storia ordinata tappe giocatore → ogni modifica risultato
-  richiama `RecomputePlayerAsync`.
+- **Scoring** (`ScoringService`, puro, parametrizzato su `ScoringRule`):
+  `tournamentTotal = matchPoints + scoreBonus + positionBonus + participationPoints`.
+  - `matchPoints = Wins*PointsPerWin + Draws*PointsPerDraw + Losses*PointsPerLoss` (W/D/L opzionali
+    sul `Result`; se assenti si usa il `MatchPoints` diretto, es. import). `Position` opzionale (da PDF).
+  - `scoreBonus`: voce `ScoreBonuses` con `FromMatchPoints` più alta ≤ matchPoints (a **soglia**).
+  - `positionBonus`: `PositionBonuses[Position]`. `participationPoints`: voce `ParticipationTiers`
+    con `FromTournament` più alta ≤ indice progressivo 1-based (storia ordinata data→numero→id).
+  - Ogni modifica risultato richiama `RecomputePlayerAsync` (ricalcola i componenti su tutti i
+    `Result` del giocatore). I componenti sono persistiti sul `Result`
+    (`ScoreBonus`/`PositionBonus`/`ParticipationPoints`/`TotalPoints`).
+- **`ScoringRule`** = config 1:1 con la stagione (`Season.ScoringRule`, **jsonb** via value converter):
+  `PointsPerWin/Draw/Loss`, `PositionBonuses[]`, `ScoreBonuses[]`, `ParticipationTiers[]` (+`Validate()`).
+  `CountBestN` = `Season.CountingStages` (niente campo duplicato). Default = cablato storico Massarosa
+  (`ScoringRule.Default()`): scoreBonus 6→1,7→2,8→3,9→4,10→6,12→8; presenza 1ª–5ª +1, dalla 6ª +2.
 - **Classifica**: "Best N tappe" — somma migliori `CountingStages` (default 8) su `TotalStages` (12).
+  Ordinamento (invariato): `TotalPoints` (best N) desc → `AbsoluteTotal` desc → nome asc; pari merito
+  stesso `Rank`. Le righe espongono breakdown (`BestResults[]`, `TournamentsPlayed/CountedForTotal`).
 
 ## API (endpoint)
 
@@ -71,8 +86,10 @@ Base `/api`. Lettura **pubblica**, scrittura **protetta** (JWT). Lega risolta da
   `/players?search=&skip=&take=` (giocatori della season, filtrati+paginati per il picker;
   default take=20, max 100), `/players/{id}/progression`, `/matrix`.
 - Admin lega (`RequireAuthorization` + filtro: super-admin passa sempre, altrimenti claim `leagueId`
-  del token deve == lega del contesto, sennò 403): `PUT /season`, `POST /stages`,
-  `POST|PUT|DELETE /results`, `POST /import/pdf` (preview), `POST /import/commit`,
+  del token deve == lega del contesto, sennò 403): `PUT /season`,
+  `PUT /season/scoring-rule` (sostituisce la `ScoringRule` e ricalcola tutti i risultati), `POST /stages`,
+  `POST|PUT|DELETE /results` (accettano `Wins/Draws/Losses/Position` opzionali oltre a `MatchPoints`),
+  `POST /import/pdf` (preview), `POST /import/commit` (propaga `Position` dal PDF),
   `POST|DELETE /logo` (logo lega corrente; valida PNG/JPEG/WebP/SVG, max 1 MB
   backstop — il client comprime/ridimensiona prima dell'upload, vedi `core/image-compress.ts`).
 - Super-admin (`/leagues`, filtro `Role==SuperAdmin`): `GET /leagues/all`, `POST /leagues`,
@@ -122,8 +139,9 @@ npm test                                   # karma/jasmine
   `inserimento` (un solo campo, no toggle Esistente/Nuovo) e in `importazione` (un picker per riga;
   nuovo player con **nome editabile** anche diverso da quello del PDF; campo svuotato = riga ignorata).
 - Identificatori **inglese**; termini dominio **italiano** dove non c'è equivalente pulito
-  (Tappa/Stage, BonusRisultato, BonusPartecipazione). UI italiano.
+  (Tappa/Stage, ScoreBonus, PositionBonus, ParticipationPoints). UI italiano.
 - Scoring **solo** in `ScoringService` dominio — non duplicare nel client
-  (`client/src/app/core/scoring.ts` solo presentazione).
+  (`client/src/app/core/scoring.ts` solo presentazione: funzioni parametrizzate sulla `ScoringRule`
+  della stagione per l'anteprima live in `inserimento`).
 - API base client relativa (`'api'`) → funziona sotto sottocartella.
 - Niente segreti nel repo: JWT key + hash admin via env (`.env.prod.example`).

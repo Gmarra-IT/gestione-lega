@@ -26,19 +26,37 @@
       <p class="hint">Cerca un giocatore esistente oppure digita un nome nuovo e scegli «Crea».</p>
     </div>
 
-    <div>
-      <label for="mp">Punti effettivi (0–12)</label>
-      <input id="mp" name="mp" type="number" min="0" max="12"
-             [ngModel]="matchPoints()" (ngModelChange)="matchPoints.set(+$event)" />
+    <div class="wdl">
+      <div>
+        <label for="wins">Vittorie</label>
+        <input id="wins" name="wins" type="number" min="0"
+               [ngModel]="wins()" (ngModelChange)="wins.set(+$event)" />
+      </div>
+      <div>
+        <label for="draws">Pareggi</label>
+        <input id="draws" name="draws" type="number" min="0"
+               [ngModel]="draws()" (ngModelChange)="draws.set(+$event)" />
+      </div>
+      <div>
+        <label for="losses">Sconfitte</label>
+        <input id="losses" name="losses" type="number" min="0"
+               [ngModel]="losses()" (ngModelChange)="losses.set(+$event)" />
+      </div>
+      <div>
+        <label for="pos">Piazzamento</label>
+        <input id="pos" name="pos" type="number" min="1" placeholder="—"
+               [ngModel]="position()" (ngModelChange)="position.set($event === null || $event === '' ? null : +$event)" />
+      </div>
     </div>
 
     <div class="preview">
       <span>Punti <strong>{{ matchPoints() }}</strong></span>
-      <span>+ Bonus risultato <strong>{{ previewBonusRisultato() }}</strong></span>
-      <span>+ Bonus partecipazione <strong>{{ previewBonusPartecipazione() }}</strong></span>
+      <span>+ Bonus soglia <strong>{{ previewScoreBonus() }}</strong></span>
+      <span>+ Bonus piazz. <strong>{{ previewPositionBonus() }}</strong></span>
+      <span>+ Bonus partecip. <strong>{{ previewParticipation() }}</strong></span>
       <span class="total">= <strong>{{ previewTotal() }}</strong></span>
     </div>
-    <p class="hint">Partecipazioni precedenti: {{ priorParticipations() }} → bonus {{ previewBonusPartecipazione() }} (soglia 5).</p>
+    <p class="hint">Partecipazione n° {{ priorParticipations() + 1 }} → bonus presenza {{ previewParticipation() }}.</p>
 
     @if (error()) { <div class="msg error">{{ error() }}</div> }
     @if (ok()) { <div class="msg ok">{{ ok() }}</div> }
@@ -57,8 +75,9 @@
         <tr>
           <th>Giocatore</th>
           <th class="num">Punti</th>
-          <th class="num">BR</th>
-          <th class="num">BP</th>
+          <th class="num" title="Bonus soglia">BS</th>
+          <th class="num" title="Bonus piazzamento">BPz</th>
+          <th class="num" title="Bonus partecipazione">BP</th>
           <th class="num">Tot</th>
           <th></th>
         </tr>
@@ -68,15 +87,16 @@
           <tr>
             <td>{{ r.displayName }}</td>
             <td class="num">{{ r.matchPoints }}</td>
-            <td class="num muted">{{ r.bonusRisultato }}</td>
-            <td class="num muted">{{ r.bonusPartecipazione }}</td>
+            <td class="num muted">{{ r.scoreBonus }}</td>
+            <td class="num muted">{{ r.positionBonus }}</td>
+            <td class="num muted">{{ r.participationPoints }}</td>
             <td class="num"><strong>{{ r.totalPoints }}</strong></td>
             <td class="num">
               <button type="button" class="del" title="Elimina" (click)="deleteResult(r)">✕</button>
             </td>
           </tr>
         } @empty {
-          <tr><td colspan="6" class="muted">Nessun risultato per questa tappa.</td></tr>
+          <tr><td colspan="7" class="muted">Nessun risultato per questa tappa.</td></tr>
         }
       </tbody>
     </table>

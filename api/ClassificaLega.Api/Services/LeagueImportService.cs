@@ -70,8 +70,8 @@ public class LeagueImportService(AppDbContext db, LeagueWriteService write, Leag
         if (req.Rows.Count == 0)
             throw ApiException.BadRequest("Nessuna riga da importare.");
         foreach (var r in req.Rows)
-            if (r.MatchPoints < 0 || r.MatchPoints > 12)
-                throw ApiException.BadRequest($"Punti non validi per '{r.Name}' (0–12).");
+            if (r.MatchPoints < 0)
+                throw ApiException.BadRequest($"Punti non validi per '{r.Name}' (>= 0).");
 
         await using var tx = await db.Database.BeginTransactionAsync();
 
@@ -166,6 +166,7 @@ public class LeagueImportService(AppDbContext db, LeagueWriteService write, Leag
                 StageId = stage.Id,
                 PlayerId = playerId,
                 MatchPoints = row.MatchPoints,
+                Position = row.Position,
                 CreatedAt = DateTimeOffset.UtcNow,
             });
         }

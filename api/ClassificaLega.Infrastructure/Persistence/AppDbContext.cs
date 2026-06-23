@@ -1,5 +1,9 @@
+using System.Text.Json;
 using ClassificaLega.Domain.Entities;
+using ClassificaLega.Domain.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace ClassificaLega.Infrastructure.Persistence;
 
@@ -12,6 +16,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Player> Players => Set<Player>();
     public DbSet<Stage> Stages => Set<Stage>();
     public DbSet<Result> Results => Set<Result>();
+
+    private static readonly JsonSerializerOptions ScoringRuleJson = new(JsonSerializerDefaults.Web);
+
+    private static readonly ValueConverter<ScoringRule, string> ScoringRuleConverter = new(
+        v => JsonSerializer.Serialize(v, ScoringRuleJson),
+        v => JsonSerializer.Deserialize<ScoringRule>(v, ScoringRuleJson) ?? ScoringRule.Default());
+
+    // Confronto/snapshot deep via serializzazione (la regola è mutabile).
+    private static readonly ValueComparer<ScoringRule> ScoringRuleComparer = new(
+        (a, b) => JsonSerializer.Serialize(a, ScoringRuleJson) == JsonSerializer.Serialize(b, ScoringRuleJson),
+        v => JsonSerializer.Serialize(v, ScoringRuleJson).GetHashCode(),
+        v => JsonSerializer.Deserialize<ScoringRule>(JsonSerializer.Serialize(v, ScoringRuleJson), ScoringRuleJson)!);
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -51,6 +67,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            // ScoringRule serializzata a jsonb: niente tabelle figlie, query Season leggere, seed semplice.
+            e.Property(x => x.ScoringRule)
+                .HasConversion(ScoringRuleConverter)
+                .Metadata.SetValueComparer(ScoringRuleComparer);
+            e.Property(x => x.ScoringRule).HasColumnType("jsonb").IsRequired();
             e.HasMany(x => x.Stages).WithOne(x => x.Season).HasForeignKey(x => x.SeasonId);
             e.HasMany(x => x.Players).WithOne(x => x.Season).HasForeignKey(x => x.SeasonId);
         });

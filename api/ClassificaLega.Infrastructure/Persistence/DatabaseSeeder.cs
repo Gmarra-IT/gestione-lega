@@ -90,33 +90,33 @@ public static class DatabaseSeeder
         db.Players.AddRange(players);
         await db.SaveChangesAsync();
 
+        var rule = season.ScoringRule;
         var results = new List<Result>();
         for (int pi = 0; pi < PlayerData.Length; pi++)
         {
             var (_, matchPointsPerStage) = PlayerData[pi];
             var player = players[pi];
 
-            // stages where this player participated
+            // tappe giocate, in ordine cronologico (= numero tappa: le tappe seed non hanno data).
             var participatedStages = matchPointsPerStage
-                .Select((mp, idx) => (mp, stageId: stages[idx].Id, stageNumber: idx + 1))
+                .Select((mp, idx) => (mp, stageId: stages[idx].Id))
                 .Where(x => x.mp.HasValue)
                 .ToList();
 
-            var bonusPartecipazioneMap = ScoringService.RecomputePartecipazione(
-                participatedStages.Select(x => (x.stageId, x.stageNumber)));
-
-            foreach (var (mp, stageId, _) in participatedStages)
+            for (int i = 0; i < participatedStages.Count; i++)
             {
-                var br = ScoringService.BonusRisultato(mp!.Value);
-                var bp = bonusPartecipazioneMap[stageId];
+                var (mp, stageId) = participatedStages[i];
+                var scoreBonus = ScoringService.ScoreBonusFor(mp!.Value, rule);
+                var participation = ScoringService.ParticipationPointsFor(i + 1, rule);
                 results.Add(new Result
                 {
                     StageId = stageId,
                     PlayerId = player.Id,
                     MatchPoints = mp.Value,
-                    BonusRisultato = br,
-                    BonusPartecipazione = bp,
-                    TotalPoints = ScoringService.ComputeTotalPoints(mp.Value, br, bp),
+                    ScoreBonus = scoreBonus,
+                    PositionBonus = 0,
+                    ParticipationPoints = participation,
+                    TotalPoints = mp.Value + scoreBonus + participation,
                     CreatedAt = DateTimeOffset.UtcNow,
                     UpdatedAt = DateTimeOffset.UtcNow,
                 });
@@ -135,7 +135,7 @@ public static class DatabaseSeeder
             return;
 
         // Super-admin globale (LeagueId null).
-        var hasSuperAdmin = await db.Users.AnyAsync(u => u.Username == adminUsername && u.LeagueId == null);
+        var hasSuperAdmin = await db.Users.AnyAsync(u => u.Username.ToLower() == adminUsername.ToLower() && u.LeagueId == null);
         if (!hasSuperAdmin)
         {
             db.Users.Add(new User
@@ -153,7 +153,7 @@ public static class DatabaseSeeder
         var seedLeague = await db.Leagues.FirstOrDefaultAsync(l => l.Slug == SeedLeagueSlug);
         if (seedLeague is not null)
         {
-            var hasLeagueAdmin = await db.Users.AnyAsync(u => u.Username == adminUsername && u.LeagueId == seedLeague.Id);
+            var hasLeagueAdmin = await db.Users.AnyAsync(u => u.Username.ToLower() == adminUsername.ToLower() && u.LeagueId == seedLeague.Id);
             if (!hasLeagueAdmin)
             {
                 db.Users.Add(new User
